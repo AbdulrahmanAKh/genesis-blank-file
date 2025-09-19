@@ -136,8 +136,8 @@ const Groups = () => {
     setNewMessage('');
   };
 
-  const filteredRegionGroups = regionGroups.filter(group =>
-    group.group_name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRegionGroups = (regionGroups || []).filter(group =>
+    group?.group_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -146,8 +146,8 @@ const Groups = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">{t('groups', 'القروبات')}</h1>
-            <p className="text-muted-foreground">{t('groupsDescription', 'تواصل مع المغامرين في منطقتك وفعالياتك')}</p>
+            <h1 className="text-3xl font-bold text-foreground mb-2">القروبات</h1>
+            <p className="text-muted-foreground">تواصل مع المغامرين في منطقتك وفعالياتك</p>
           </div>
           {userRole === 'organizer' && (
             <CreateGroupDialog 
@@ -183,8 +183,8 @@ const Groups = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Array.isArray(regionGroups) ? regionGroups.filter(group =>
-                    group.group_name.toLowerCase().includes(searchTerm.toLowerCase())
+                  {Array.isArray(regionGroups) && regionGroups.length > 0 ? (regionGroups || []).filter(group =>
+                    group?.group_name?.toLowerCase().includes(searchTerm.toLowerCase())
                   ).map((group) => (
                     <Card key={group.id} className="cursor-pointer hover:shadow-lg transition-shadow">
                       <CardHeader>
@@ -196,14 +196,14 @@ const Groups = () => {
                           </Badge>
                         </div>
                         <CardDescription>
-                          {t('groupDescription', 'قروب عام لمحبي المغامرة')}
+                          قروب عام لمحبي المغامرة
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="flex justify-between items-center">
                           <div className="flex items-center text-sm text-muted-foreground">
                             <Users className="w-4 h-4 ml-2" />
-                            {group.current_members} / {group.max_members} {t('member', 'عضو')}
+                            {group.current_members} / {group.max_members} عضو
                           </div>
                           <Button 
                             size="sm"
@@ -211,12 +211,17 @@ const Groups = () => {
                             disabled={group.current_members >= group.max_members}
                           >
                             <UserPlus className="w-4 h-4 ml-1" />
-                            {t('join', 'انضم')}
+                            انضم
                           </Button>
                         </div>
                       </CardContent>
                     </Card>
-                  )) : []}
+                  )) : (
+                    <div className="col-span-full text-center py-12">
+                      <h3 className="text-lg font-medium mb-2">لا توجد قروبات حالياً</h3>
+                      <p className="text-muted-foreground">ستتم إضافة قروبات قريباً</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -260,10 +265,10 @@ const Groups = () => {
                             {group.created_by === user?.id && (
                               <Badge variant="default">
                                 <Crown className="w-3 h-3 ml-1" />
-                                {t('organizer', 'منظم')}
+                                منظم
                               </Badge>
                             )}
-                            <Badge variant="outline">{t('event', 'فعالية')}</Badge>
+                            <Badge variant="outline">فعالية</Badge>
                           </div>
                         </div>
                       </CardHeader>
@@ -271,7 +276,7 @@ const Groups = () => {
                         <div className="flex justify-between items-center mb-4">
                           <div className="flex items-center text-sm text-muted-foreground">
                             <Users className="w-4 h-4 ml-2" />
-                            {group.current_members} / {group.max_members} {t('member', 'عضو')}
+                            {group.current_members} / {group.max_members} عضو
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {new Date(group.created_at).toLocaleDateString('ar-SA')}
@@ -284,7 +289,7 @@ const Groups = () => {
                             onClick={() => setSelectedGroup(group)}
                           >
                             <MessageSquare className="w-4 h-4 ml-1" />
-                            {t('chat', 'دردشة')}
+                            دردشة
                           </Button>
                           
                           <GroupMemberManagement

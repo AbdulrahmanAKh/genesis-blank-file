@@ -5,7 +5,11 @@ export const eventsService = {
   getAll: async () => {
     const { data, error } = await supabase
       .from('events')
-      .select('*, categories(*), profiles!events_organizer_id_fkey(*)')
+      .select(`
+        *,
+        categories(*),
+        profiles:organizer_id(*)
+      `)
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -15,7 +19,11 @@ export const eventsService = {
   getById: async (id: string) => {
     const { data, error } = await supabase
       .from('events')
-      .select('*, categories(*), profiles!events_organizer_id_fkey(*)')
+      .select(`
+        *,
+        categories(*),
+        profiles:organizer_id(*)
+      `)
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
@@ -65,7 +73,11 @@ export const eventsService = {
   search: async (query: string) => {
     const { data, error } = await supabase
       .from('events')
-      .select('*, categories(*), profiles!events_organizer_id_fkey(*)')
+      .select(`
+        *,
+        categories(*),
+        profiles:organizer_id(*)
+      `)
       .or(`title.ilike.%${query}%, description.ilike.%${query}%`)
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
@@ -79,14 +91,22 @@ export const servicesService = {
   getAll: () =>
     supabase
       .from('services')
-      .select('*, categories(*), profiles!services_provider_id_fkey(*)')
+      .select(`
+        *,
+        categories(*),
+        profiles:provider_id(*)
+      `)
       .eq('status', 'approved')
       .order('created_at', { ascending: false }),
 
   getById: (id: string) =>
     supabase
       .from('services')
-      .select('*, categories(*), profiles!services_provider_id_fkey(*)')
+      .select(`
+        *,
+        categories(*),
+        profiles:provider_id(*)
+      `)
       .eq('id', id)
       .single(),
 
@@ -121,7 +141,11 @@ export const servicesService = {
   search: (query: string) =>
     supabase
       .from('services')
-      .select('*, categories(*), profiles!services_provider_id_fkey(*)')
+      .select(`
+        *,
+        categories(*),
+        profiles:provider_id(*)
+      `)
       .or(`name.ilike.%${query}%, description.ilike.%${query}%`)
       .eq('status', 'approved')
       .order('created_at', { ascending: false }),
@@ -194,7 +218,10 @@ export const bookingsService = {
   getByEvent: async (eventId: string) => {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, profiles!bookings_user_id_fkey(*)')
+      .select(`
+        *,
+        profiles:user_id(*)
+      `)
       .eq('event_id', eventId)
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -350,14 +377,20 @@ export const reviewsService = {
   getByEventId: (eventId: string) =>
     supabase
       .from('reviews')
-      .select('*, profiles!reviews_user_id_fkey(*)')
+      .select(`
+        *,
+        profiles:user_id(*)
+      `)
       .eq('event_id', eventId)
       .order('created_at', { ascending: false }),
 
   getByServiceId: (serviceId: string) =>
     supabase
       .from('reviews')
-      .select('*, profiles!reviews_user_id_fkey(*)')
+      .select(`
+        *,
+        profiles:user_id(*)
+      `)
       .eq('service_id', serviceId)
       .order('created_at', { ascending: false }),
 
@@ -382,7 +415,11 @@ const events = {
   getById: async (id: string) => {
     const { data, error } = await supabase
       .from('events')
-      .select('*, categories(*), profiles!events_organizer_id_fkey(*)')
+      .select(`
+        *,
+        categories(*),
+        profiles:organizer_id(*)
+      `)
       .eq('id', id)
       .single();
     if (error) throw error;
@@ -402,7 +439,10 @@ const bookings = {
   getByEvent: async (eventId: string) => {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, profiles!bookings_user_id_fkey(*)')
+      .select(`
+        *,
+        profiles:user_id(*)
+      `)
       .eq('event_id', eventId)
       .order('created_at', { ascending: false });
     if (error) throw error;

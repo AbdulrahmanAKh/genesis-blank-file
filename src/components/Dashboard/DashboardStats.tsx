@@ -57,28 +57,28 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ userRole, stats:
 
   const getAttendeeStats = () => [
     {
-      title: t('dashboardPage.totalBookings'),
+      title: 'إجمالي الحجوزات',
       value: '12',
       change: '+2 هذا الشهر',
       trend: 'up' as const,
       icon: <Calendar className="h-4 w-4 text-primary" />,
     },
     {
-      title: t('dashboardPage.upcomingEvents'),
+      title: 'الفعاليات القادمة',
       value: '3',
       change: 'خلال أسبوعين',
       trend: 'neutral' as const,
       icon: <MapPin className="h-4 w-4 text-blue-500" />,
     },
     {
-      title: t('dashboardPage.loyaltyPoints'),
+      title: 'نقاط الولاء',
       value: '2,450',
       change: '+150 نقطة',
       trend: 'up' as const,
       icon: <Award className="h-4 w-4 text-yellow-500" />,
     },
     {
-      title: t('dashboardPage.totalSpent'),
+      title: 'إجمالي المبلغ المنفق',
       value: '3,200 ريال',
       change: '+450 ريال',
       trend: 'up' as const,

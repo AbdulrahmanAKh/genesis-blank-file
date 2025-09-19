@@ -2,55 +2,76 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Events Services
 export const eventsService = {
-  getAll: () => 
-    supabase
+  getAll: async () => {
+    const { data, error } = await supabase
       .from('events')
       .select('*, categories(*), profiles!events_organizer_id_fkey(*)')
       .eq('status', 'approved')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { data: data || [] };
+  },
 
-  getById: (id: string) =>
-    supabase
+  getById: async (id: string) => {
+    const { data, error } = await supabase
       .from('events')
       .select('*, categories(*), profiles!events_organizer_id_fkey(*)')
       .eq('id', id)
-      .single(),
+      .maybeSingle();
+    if (error) throw error;
+    return { data };
+  },
 
-  getByOrganizer: (organizerId: string) =>
-    supabase
+  getByOrganizer: async (organizerId: string) => {
+    const { data, error } = await supabase
       .from('events')
       .select('*, categories(*)')
       .eq('organizer_id', organizerId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { data: data || [] };
+  },
 
-  create: (eventData: any) =>
-    supabase
+  create: async (eventData: any) => {
+    const { data, error } = await supabase
       .from('events')
       .insert(eventData)
       .select()
-      .single(),
+      .single();
+    if (error) throw error;
+    return { data };
+  },
 
-  update: (id: string, eventData: any) =>
-    supabase
+  update: async (id: string, eventData: any) => {
+    const { data, error } = await supabase
       .from('events')
       .update(eventData)
       .eq('id', id)
       .select()
-      .single(),
+      .single();
+    if (error) throw error;
+    return { data };
+  },
 
-  delete: (id: string) =>
-    supabase
+  delete: async (id: string) => {
+    const { error } = await supabase
       .from('events')
       .delete()
-      .eq('id', id),
+      .eq('id', id);
+    if (error) throw error;
+    return { data: null };
+  },
 
-  search: (query: string) =>
-    supabase
+  search: async (query: string) => {
+    const { data, error } = await supabase
       .from('events')
       .select('*, categories(*), profiles!events_organizer_id_fkey(*)')
       .or(`title.ilike.%${query}%, description.ilike.%${query}%`)
       .eq('status', 'approved')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { data: data || [] };
+  },
 };
 
 // Services Services
@@ -108,79 +129,109 @@ export const servicesService = {
 
 // Categories Services
 export const categoriesService = {
-  getAll: () =>
-    supabase
+  getAll: async () => {
+    const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .order('name'),
+      .order('name');
+    if (error) throw error;
+    return { data: data || [] };
+  },
 
-  getById: (id: string) =>
-    supabase
+  getById: async (id: string) => {
+    const { data, error } = await supabase
       .from('categories')
       .select('*')
       .eq('id', id)
-      .single(),
+      .maybeSingle();
+    if (error) throw error;
+    return { data };
+  },
 
-  create: (categoryData: any) =>
-    supabase
+  create: async (categoryData: any) => {
+    const { data, error } = await supabase
       .from('categories')
       .insert(categoryData)
       .select()
-      .single(),
+      .single();
+    if (error) throw error;
+    return { data };
+  },
 
-  update: (id: string, categoryData: any) =>
-    supabase
+  update: async (id: string, categoryData: any) => {
+    const { data, error } = await supabase
       .from('categories')
       .update(categoryData)
       .eq('id', id)
       .select()
-      .single(),
+      .single();
+    if (error) throw error;
+    return { data };
+  },
 
-  delete: (id: string) =>
-    supabase
+  delete: async (id: string) => {
+    const { error } = await supabase
       .from('categories')
       .delete()
-      .eq('id', id),
+      .eq('id', id);
+    if (error) throw error;
+    return { data: null };
+  },
 };
 
 // Bookings Services
 export const bookingsService = {
-  getByUser: (userId: string) =>
-    supabase
+  getByUser: async (userId: string) => {
+    const { data, error } = await supabase
       .from('bookings')
       .select('*, events(*)')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { data: data || [] };
+  },
 
-  getByEvent: (eventId: string) =>
-    supabase
+  getByEvent: async (eventId: string) => {
+    const { data, error } = await supabase
       .from('bookings')
       .select('*, profiles!bookings_user_id_fkey(*)')
       .eq('event_id', eventId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { data: data || [] };
+  },
 
-  create: (bookingData: any) =>
-    supabase
+  create: async (bookingData: any) => {
+    const { data, error } = await supabase
       .from('bookings')
       .insert(bookingData)
       .select()
-      .single(),
+      .single();
+    if (error) throw error;
+    return { data };
+  },
 
-  update: (id: string, bookingData: any) =>
-    supabase
+  update: async (id: string, bookingData: any) => {
+    const { data, error } = await supabase
       .from('bookings')
       .update(bookingData)
       .eq('id', id)
       .select()
-      .single(),
+      .single();
+    if (error) throw error;
+    return { data };
+  },
 
-  cancel: (id: string) =>
-    supabase
+  cancel: async (id: string) => {
+    const { data, error } = await supabase
       .from('bookings')
       .update({ status: 'cancelled' })
       .eq('id', id)
       .select()
-      .single(),
+      .single();
+    if (error) throw error;
+    return { data };
+  },
 };
 
 // Profiles Services
@@ -274,18 +325,24 @@ export const walletService = {
 
 // Loyalty Points Services
 export const loyaltyService = {
-  getPointsByUserId: (userId: string) =>
-    supabase
+  getPointsByUserId: async (userId: string) => {
+    const { data, error } = await supabase
       .from('loyalty_ledger')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { data: data || [] };
+  },
 
-  getTotalPoints: (userId: string) =>
-    supabase
+  getTotalPoints: async (userId: string) => {
+    const { data, error } = await supabase
       .from('loyalty_ledger')
       .select('points')
-      .eq('user_id', userId),
+      .eq('user_id', userId);
+    if (error) throw error;
+    return { data: data || [] };
+  },
 };
 
 // Reviews Services
@@ -350,6 +407,15 @@ const bookings = {
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
+  },
+  getByUserId: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, events(*)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
   }
 };
 
@@ -387,17 +453,14 @@ export const supabaseServices = {
   events: {
     ...events,
     getAll: async () => {
-      const { data, error } = await eventsService.getAll();
-      if (error) throw error;
-      return data || [];
+      return await eventsService.getAll();
     }
-  }, 
+  },
   bookings: {
     ...bookings,
     getByUserId: async (userId: string) => {
-      const { data, error } = await bookings.getByUserId(userId);
-      if (error) throw error;
-      return data || [];
+      const data = await bookings.getByUserId(userId);
+      return { data };
     }
   },
   profiles, 

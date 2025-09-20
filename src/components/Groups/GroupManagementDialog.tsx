@@ -23,6 +23,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useLanguageContext } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GroupMember {
   id: string;
@@ -70,58 +71,29 @@ export const GroupManagementDialog = ({ open, onOpenChange, group }: GroupManage
   const loadGroupData = async () => {
     setLoading(true);
     try {
-      // Mock data for members
-      const mockMembers: GroupMember[] = [
-        {
-          id: '1',
-          name: 'أحمد المغامر',
-          email: 'ahmed@example.com',
-          role: 'admin',
-          joined_at: '2024-01-01T00:00:00Z',
-          status: 'active',
-          last_activity: '2024-01-15T10:30:00Z'
-        },
-        {
-          id: '2',
-          name: 'سارة الرياضية',
-          email: 'sara@example.com',
-          role: 'moderator',
-          joined_at: '2024-01-05T00:00:00Z',
-          status: 'active',
-          last_activity: '2024-01-14T15:20:00Z'
-        },
-        {
-          id: '3',
-          name: 'محمد التصوير',
-          email: 'mohamed@example.com',
-          role: 'member',
-          joined_at: '2024-01-10T00:00:00Z',
-          status: 'muted',
-          last_activity: '2024-01-13T09:45:00Z'
-        }
-      ];
+      // Load group members from database
+      const { data: membersData, error: membersError } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', group?.id);
 
-      // Mock data for join requests (only for private groups)
-      const mockJoinRequests: JoinRequest[] = group?.type === 'private' ? [
-        {
-          id: '1',
-          user_id: 'req1',
-          user_name: 'علي المبتدئ',
-          user_email: 'ali@example.com',
-          message: 'مرحباً، أود الانضمام إلى المجموعة لتعلم المزيد عن المغامرات',
-          requested_at: '2024-01-15T08:00:00Z'
-        },
-        {
-          id: '2',
-          user_id: 'req2',
-          user_name: 'فاطمة الطبيعة',
-          user_email: 'fatima@example.com',
-          requested_at: '2024-01-14T16:30:00Z'
-        }
-      ] : [];
+      if (membersError) throw membersError;
 
-      setMembers(mockMembers);
-      setJoinRequests(mockJoinRequests);
+      const mappedMembers: GroupMember[] = (membersData || []).map(member => ({
+        id: member.id,
+        name: `مستخدم ${member.user_id.slice(0, 8)}`,
+        email: `user-${member.user_id.slice(0, 8)}@example.com`,
+        role: member.role as 'admin' | 'moderator' | 'member',
+        joined_at: member.joined_at,
+        status: member.is_muted ? 'muted' : 'active',
+        last_activity: member.joined_at
+      }));
+
+      // For private groups, load join requests (this would be a separate table in real implementation)
+      const joinRequestsData: JoinRequest[] = [];
+
+      setMembers(mappedMembers);
+      setJoinRequests(joinRequestsData);
     } catch (error) {
       toast({
         title: language === 'ar' ? 'خطأ' : 'Error',

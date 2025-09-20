@@ -259,33 +259,11 @@ const AdvancedSearchSystem: React.FC<AdvancedSearchSystemProps> = ({
     }
 
     // Filter results based on current filters
-    let filteredResults = mockResults.filter(result => {
-      const matchesQuery = !filters.query || 
-        (isRTL ? result.title_ar : result.title)
-          .toLowerCase()
-          .includes(filters.query.toLowerCase()) ||
-        result.tags?.some(tag => tag.toLowerCase().includes(filters.query.toLowerCase()));
-
-      const matchesCategory = !filters.category || result.category === filters.category;
-      const matchesCity = !filters.city || result.city === filters.city;
-      const matchesPrice = result.price >= filters.priceRange[0] && result.price <= filters.priceRange[1];
-      const matchesRating = result.rating >= filters.rating;
-      const matchesDifficulty = filters.difficulty.length === 0 || filters.difficulty.includes(result.difficulty || '');
-      const matchesFeatured = !filters.featured || result.featured;
-      const matchesInstantBook = !filters.instantBook || result.instantBook;
-
-      // Date filtering
-      let matchesDate = true;
-      if (filters.dateFrom || filters.dateTo) {
-        const resultDate = new Date(result.date);
-        matchesDate = (!filters.dateFrom || resultDate >= filters.dateFrom) &&
-                     (!filters.dateTo || resultDate <= filters.dateTo);
-      }
-
-      return matchesQuery && matchesCategory && matchesCity && matchesPrice && 
-             matchesRating && matchesDifficulty && matchesFeatured && 
-             matchesInstantBook && matchesDate;
-    });
+    // Real search implementation would query database
+    let filteredResults: SearchResult[] = [];
+    
+    // For now, no search results will be shown until backend is implemented
+    // Once backend is ready, implement proper filtering here
 
     // Sort results
     filteredResults.sort((a, b) => {

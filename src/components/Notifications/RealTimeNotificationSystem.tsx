@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguageContext } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Bell, 
   BellRing, 
@@ -107,95 +108,41 @@ const RealTimeNotificationSystem: React.FC<RealTimeNotificationSystemProps> = ({
   const [filterType, setFilterType] = useState<string>('all');
   const [isConnected, setIsConnected] = useState(false);
 
-  // Mock notifications data
-  const mockNotifications: Notification[] = [
-    {
-      id: '1',
-      title: 'Booking Confirmed',
-      title_ar: 'تم تأكيد الحجز',
-      message: 'Your booking for Tuwaiq Mountain Hiking has been confirmed for March 15, 2024',
-      message_ar: 'تم تأكيد حجزك لرحلة هايكنج جبل طويق في 15 مارس 2024',
-      type: 'booking',
-      priority: 'high',
-      read: false,
-      timestamp: new Date(Date.now() - 10 * 60000), // 10 minutes ago
-      actionUrl: '/my-bookings',
-      actionText: 'View Booking',
-      actionText_ar: 'عرض الحجز'
-    },
-    {
-      id: '2',
-      title: 'Event Reminder',
-      title_ar: 'تذكير بالفعالية',
-      message: 'Red Sea Diving Experience starts in 2 hours. Please arrive 30 minutes early.',
-      message_ar: 'تجربة غوص البحر الأحمر تبدأ خلال ساعتين. يرجى الوصول قبل 30 دقيقة.',
-      type: 'reminder',
-      priority: 'urgent',
-      read: false,
-      timestamp: new Date(Date.now() - 30 * 60000), // 30 minutes ago
-      actionUrl: '/event/2',
-      actionText: 'View Event',
-      actionText_ar: 'عرض الفعالية'
-    },
-    {
-      id: '3',
-      title: 'Payment Successful',
-      title_ar: 'تم الدفع بنجاح',
-      message: 'Your payment of 350 SAR for Red Sea Diving has been processed successfully.',
-      message_ar: 'تم معالجة دفعتك بقيمة 350 ريال لغوص البحر الأحمر بنجاح.',
-      type: 'payment',
-      priority: 'medium',
-      read: true,
-      timestamp: new Date(Date.now() - 2 * 60 * 60000), // 2 hours ago
-      actionUrl: '/payments',
-      actionText: 'View Receipt',
-      actionText_ar: 'عرض الإيصال'
-    },
-    {
-      id: '4',
-      title: 'New Review',
-      title_ar: 'تقييم جديد',
-      message: 'Ahmed left a 5-star review for your Desert Camping event.',
-      message_ar: 'ترك أحمد تقييماً 5 نجوم لفعالية التخييم الصحراوي الخاصة بك.',
-      type: 'social',
-      priority: 'low',
-      read: false,
-      timestamp: new Date(Date.now() - 4 * 60 * 60000), // 4 hours ago
-      actionUrl: '/reviews',
-      actionText: 'View Review',
-      actionText_ar: 'عرض التقييم'
-    },
-    {
-      id: '5',
-      title: 'Special Offer!',
-      title_ar: 'عرض خاص!',
-      message: 'Get 20% off your next adventure booking! Use code ADVENTURE20. Valid until March 31.',
-      message_ar: 'احصل على خصم 20٪ على حجز مغامرتك القادمة! استخدم الكود ADVENTURE20. صالح حتى 31 مارس.',
-      type: 'promo',
-      priority: 'medium',
-      read: false,
-      timestamp: new Date(Date.now() - 6 * 60 * 60000), // 6 hours ago
-      actionUrl: '/explore',
-      actionText: 'Browse Events',
-      actionText_ar: 'تصفح الفعاليات'
-    }
-  ];
-
-  // Initialize notifications
+  // Load notifications from database
   useEffect(() => {
-    setNotifications(mockNotifications);
-    // Simulate real-time connection
+    loadNotifications();
     setIsConnected(true);
-    
-    // Simulate receiving new notifications
-    const interval = setInterval(() => {
-      if (Math.random() > 0.8) { // 20% chance every 30 seconds
-        addNewNotification();
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
   }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      const mappedNotifications: Notification[] = (data || []).map(notif => ({
+        id: notif.id,
+        title: notif.title,
+        title_ar: notif.title,
+        message: notif.message,
+        message_ar: notif.message,
+        type: notif.type as any,
+        priority: 'medium' as any,
+        read: notif.read,
+        timestamp: new Date(notif.created_at),
+        data: notif.data
+      }));
+
+      setNotifications(mappedNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
 
   // Add new notification (simulation)
   const addNewNotification = () => {

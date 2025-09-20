@@ -54,53 +54,20 @@ export const EventMap = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isMapReady, setIsMapReady] = useState(false);
 
-  // Mock events data if none provided
-  const mockEvents: EventLocation[] = [
-    {
-      id: '1',
-      title: 'رحلة جبلية مثيرة',
-      category: 'مغامرات',
-      latitude: 24.7305,
-      longitude: 46.6905,
-      price: 350,
-      rating: 4.8,
-      date: new Date(2024, 2, 15),
-    },
-    {
-      id: '2',
-      title: 'ورشة طبخ إيطالي',
-      category: 'طعام',
-      latitude: 24.6877,
-      longitude: 46.7219,
-      price: 180,
-      rating: 4.6,
-      date: new Date(2024, 2, 20),
-    },
-    {
-      id: '3',
-      title: 'تصوير الطبيعة',
-      category: 'فنون',
-      latitude: 24.7744,
-      longitude: 46.7388,
-      price: 250,
-      rating: 4.9,
-      date: new Date(2024, 2, 25),
-    }
-  ];
-
-  const eventsToShow = events.length > 0 ? events : mockEvents;
+  // Use provided events data only
+  const eventsToShow = events;
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Mock map initialization - In real implementation:
-    // mapboxgl.accessToken = mapboxToken || '';
-    // map.current = new mapboxgl.Map({...})
+    // Map initialization - requires proper Mapbox token
+    if (mapboxToken) {
+      // Real implementation would initialize Mapbox here
+      // mapboxgl.accessToken = mapboxToken;
+      // map.current = new mapboxgl.Map({...})
+    }
     
-    // For demonstration, we'll show a placeholder
-    setTimeout(() => {
-      setIsMapReady(true);
-    }, 1000);
+    setIsMapReady(true);
 
     // Get user location
     if (navigator.geolocation) {

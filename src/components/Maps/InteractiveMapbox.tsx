@@ -53,47 +53,8 @@ const InteractiveMapbox: React.FC<InteractiveMapboxProps> = ({
   const { t, isRTL } = useLanguageContext();
   const { toast } = useToast();
 
-  // Mock events if none provided
-  const mockEvents: EventLocation[] = [
-    {
-      id: '1',
-      title: 'Tuwaiq Mountain Hiking',
-      title_ar: 'هايكنج جبل طويق',
-      category: 'hiking',
-      location: [46.6753, 24.7136],
-      price: 150,
-      rating: 4.8,
-      date: '2024-03-15',
-      difficulty: 'متوسط',
-      duration: '6 ساعات'
-    },
-    {
-      id: '2', 
-      title: 'Red Sea Diving',
-      title_ar: 'غوص البحر الأحمر',
-      category: 'diving',
-      location: [39.1638, 21.4858],
-      price: 300,
-      rating: 4.9,
-      date: '2024-03-18',
-      difficulty: 'متقدم',
-      duration: '8 ساعات'
-    },
-    {
-      id: '3',
-      title: 'Empty Quarter Desert Camp',
-      title_ar: 'تخييم الربع الخالي',
-      category: 'camping',
-      location: [49.9375, 23.8859],
-      price: 250,
-      rating: 4.7,
-      date: '2024-03-20',
-      difficulty: 'سهل',
-      duration: '24 ساعة'
-    }
-  ];
-
-  const displayEvents = events.length > 0 ? events : mockEvents;
+  // Use only provided events data
+  const displayEvents = events;
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;

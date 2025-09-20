@@ -209,10 +209,22 @@ const HeroSection = () => {
               <Card key={event.id} className="group overflow-hidden hover:shadow-xl smooth-transition adventure-shadow">
                 <div className="relative">
                   <img 
-                    src={event.image_url || "/api/placeholder/300/200"} 
+                    src={event.image_url || ''} 
                     alt={event.title_ar || event.title}
                     className="w-full h-48 object-cover group-hover:scale-105 smooth-transition"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      target.style.display = 'none';
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
                   />
+                  <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-primary/30 hidden items-center justify-center">
+                    <div className="text-center">
+                      <TrendingUp className="w-12 h-12 text-primary/50 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">لا توجد صورة</p>
+                    </div>
+                  </div>
                   <div className="absolute top-4 right-4">
                     <Badge className="bg-red-500 text-white">
                       <TrendingUp className="w-3 h-3 ml-1" />

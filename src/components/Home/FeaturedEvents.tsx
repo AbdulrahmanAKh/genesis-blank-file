@@ -141,10 +141,22 @@ const FeaturedEvents = () => {
             <Card key={event.id} className="overflow-hidden group hover:shadow-lg smooth-transition adventure-shadow">
               <div className="relative">
                 <img 
-                  src={event.image_url || "/api/placeholder/800/400"} 
+                  src={event.image_url || ''} 
                   alt={event.title}
                   className="w-full h-48 object-cover group-hover:scale-105 smooth-transition"
+                  onError={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    const fallback = target.nextElementSibling as HTMLElement;
+                    target.style.display = 'none';
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
                 />
+                <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-primary/30 hidden items-center justify-center">
+                  <div className="text-center">
+                    <Calendar className="w-12 h-12 text-primary/50 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">لا توجد صورة</p>
+                  </div>
+                </div>
                 <div className="absolute top-4 right-4 flex gap-2">
                   {event.difficulty_level && (
                     <Badge className={getDifficultyColor(event.difficulty_level)}>

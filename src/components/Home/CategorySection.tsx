@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { categoriesService, statisticsService } from '@/services/supabaseServices';
 
-// Icon mapping
+// Icon mapping with proper adventure icons
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Mountain,
   Waves,
@@ -209,14 +209,13 @@ const CategorySection = () => {
             return (
               <Card key={category.id} className="group overflow-hidden hover:shadow-xl smooth-transition">
                 <div className="relative">
-                  <img 
-                    src="/api/placeholder/400/250" 
-                    alt={category.name_ar}
-                    className="w-full h-48 object-cover group-hover:scale-105 smooth-transition"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  <div className={`w-full h-48 bg-gradient-to-br ${gradientClass} flex items-center justify-center relative overflow-hidden`}>
+                    <div className="absolute inset-0 bg-pattern opacity-10"></div>
+                    <IconComponent className="w-16 h-16 text-white/80" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  </div>
                   <div className="absolute top-4 right-4">
-                    <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${gradientClass} flex items-center justify-center`}>
+                    <div className={`w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30`}>
                       <IconComponent className="w-6 h-6 text-white" />
                     </div>
                   </div>

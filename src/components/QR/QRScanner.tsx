@@ -80,17 +80,24 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     // In production, you would use a proper QR code reader library
     const reader = new FileReader();
     reader.onload = () => {
-      // Mock QR data extraction - replace with actual QR reader
-      const mockTicketId = 'demo-ticket-' + Math.random().toString(36).substr(2, 9);
-      checkInMutation.mutate(mockTicketId);
+      // Real QR code processing would happen here
+      // For now, we'll show an error message
+      toast({
+        title: 'خدمة مؤقتة غير متاحة',
+        description: 'معالجة رموز QR من الصور ستكون متاحة قريباً',
+        variant: 'destructive'
+      });
     };
     reader.readAsDataURL(file);
   };
 
   const handleManualScan = () => {
-    // Mock manual QR scan for demo
-    const mockTicketId = 'demo-ticket-' + Math.random().toString(36).substr(2, 9);
-    checkInMutation.mutate(mockTicketId);
+    // Real QR scanning would require camera access and QR code library
+    toast({
+      title: 'خدمة مؤقتة غير متاحة',
+      description: 'مسح رموز QR من الكاميرا سيكون متاحاً قريباً',
+      variant: 'destructive'
+    });
   };
 
   return (

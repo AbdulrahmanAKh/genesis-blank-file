@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguageContext } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Star, 
   StarHalf, 
@@ -138,95 +139,55 @@ const AdvancedReviewSystem: React.FC<AdvancedReviewSystemProps> = ({
   const [hoveredCategoryRating, setHoveredCategoryRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock data for demonstration
-  const mockReviews: Review[] = [
-    {
-      id: '1',
-      userId: 'user-1',
-      userName: 'أحمد محمد',
-      userAvatar: '/api/placeholder/40/40',
-      isVerifiedBooking: true,
-      rating: 5,
-      categoryRatings: {
-        organization: 5,
-        value: 4,
-        safety: 5,
-        experience: 5,
-        guide: 5
-      },
-      title: 'تجربة رائعة ومنظمة بشكل ممتاز',
-      comment: 'كانت رحلة هايكنج جبل طويق تجربة لا تُنسى. التنظيم كان ممتازاً والمرشد السياحي كان محترفاً جداً. المناظر الطبيعية خلابة والأمان كان أولوية قصوى.',
-      images: ['/api/placeholder/200/150', '/api/placeholder/200/150'],
-      helpful: 24,
-      notHelpful: 1,
-      createdAt: new Date('2024-02-15T10:30:00'),
-      eventTitle: 'هايكنج جبل طويق المتقدم',
-      eventDate: new Date('2024-02-10T08:00:00'),
-      isRecommended: true,
-      pros: ['تنظيم ممتاز', 'مرشد محترف', 'مناظر خلابة'],
-      cons: ['وقت مبكر للانطلاق'],
-      tags: ['مغامرة', 'طبيعة', 'هايكنج'],
-      response: {
-        text: 'شكراً لك أحمد على هذا التقييم الرائع! نسعد دائماً بتوفير تجارب استثنائية لضيوفنا الكرام.',
-        responderName: 'فريق Adventure Saudi',
-        respondedAt: new Date('2024-02-16T14:20:00')
-      }
-    },
-    {
-      id: '2',
-      userId: 'user-2',
-      userName: 'فاطمة علي',
-      isVerifiedBooking: true,
-      rating: 4,
-      categoryRatings: {
-        organization: 4,
-        value: 5,
-        safety: 4,
-        experience: 4,
-        guide: 3
-      },
-      title: 'تجربة جميلة مع بعض التحفظات',
-      comment: 'الفعالية كانت جميلة والسعر مناسب جداً، لكن كان يمكن تحسين التواصل من قبل المرشد. بشكل عام تجربة جيدة وأنصح بها.',
-      helpful: 12,
-      notHelpful: 3,
-      createdAt: new Date('2024-02-12T16:45:00'),
-      eventTitle: 'هايكنج جبل طويق المتقدم',
-      eventDate: new Date('2024-02-10T08:00:00'),
-      isRecommended: true,
-      pros: ['سعر مناسب', 'تجربة جميلة'],
-      cons: ['تواصل المرشد يحتاج تحسين'],
-      tags: ['قيمة مقابل المال']
-    },
-    {
-      id: '3',
-      userId: 'user-3',
-      userName: 'خالد السعدي',
-      isVerifiedBooking: false,
-      rating: 3,
-      categoryRatings: {
-        organization: 3,
-        value: 3,
-        safety: 4,
-        experience: 3,
-        guide: 2
-      },
-      title: 'تجربة متوسطة',
-      comment: 'الفعالية كانت عادية، لم تكن بالمستوى المتوقع. التنظيم يحتاج تحسين والخدمات المقدمة لا تتناسب مع السعر.',
-      helpful: 5,
-      notHelpful: 8,
-      createdAt: new Date('2024-02-08T12:20:00'),
-      eventTitle: 'هايكنج جبل طويق المتقدم',
-      eventDate: new Date('2024-02-05T08:00:00'),
-      isRecommended: false,
-      cons: ['تنظيم ضعيف', 'خدمات لا تتناسب مع السعر'],
-      tags: ['مخيب للآمال']
-    }
-  ];
-
   useEffect(() => {
-    setReviews(mockReviews);
-    calculateSummary(mockReviews);
-  }, []);
+    loadReviews();
+  }, [entityId]);
+
+  const loadReviews = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq(entityType === 'event' ? 'event_id' : 'service_id', entityId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const mappedReviews: Review[] = (data || []).map(review => ({
+        id: review.id,
+        userId: review.user_id,
+        userName: `مستخدم ${review.user_id.slice(0, 8)}`,
+        userAvatar: undefined,
+        isVerifiedBooking: !!review.booking_id,
+        rating: review.rating,
+        categoryRatings: {
+          organization: review.rating,
+          value: review.rating,
+          safety: review.rating,
+          experience: review.rating,
+          guide: review.rating
+        },
+        title: `تقييم ${review.rating} نجوم`,
+        comment: review.comment || '',
+        helpful: review.helpful_count || 0,
+        notHelpful: 0,
+        createdAt: new Date(review.created_at),
+        eventTitle: entityType === 'event' ? 'الفعالية' : 'الخدمة',
+        eventDate: new Date(review.created_at),
+        isRecommended: review.rating >= 4,
+        pros: [],
+        cons: [],
+        tags: []
+      }));
+
+      setReviews(mappedReviews);
+      calculateSummary(mappedReviews);
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+      setReviews([]);
+      setSummary(null);
+    }
+  };
 
   const calculateSummary = (reviewList: Review[]): void => {
     if (reviewList.length === 0) {

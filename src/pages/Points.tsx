@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Layout/Navbar';
 import Footer from '@/components/Layout/Footer';
@@ -19,7 +19,7 @@ const PointsPage = () => {
   // Fetch user's loyalty points from database
   const { data: loyaltyEntries = [], isLoading } = useSupabaseQuery({
     queryKey: ['loyalty_points', user?.id],
-    queryFn: async () => {
+    queryFn: useCallback(async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
         .from('loyalty_ledger')
@@ -29,7 +29,7 @@ const PointsPage = () => {
       
       if (error) throw error;
       return data || [];
-    },
+    }, [user?.id]),
     enabled: !!user?.id
   });
 

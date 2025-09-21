@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Layout/Navbar';
 import Footer from '@/components/Layout/Footer';
@@ -38,7 +38,7 @@ const WalletPage = () => {
   // Fetch real wallet data from database
   const { data: walletData, isLoading } = useSupabaseQuery({
     queryKey: ['wallet', user?.id],
-    queryFn: async () => {
+    queryFn: useCallback(async () => {
       if (!user?.id) return null;
       const { data, error } = await supabase
         .from('user_wallets')
@@ -48,7 +48,7 @@ const WalletPage = () => {
       
       if (error && error.code !== 'PGRST116') throw error;
       return data;
-    },
+    }, [user?.id]),
     enabled: !!user?.id
   });
 

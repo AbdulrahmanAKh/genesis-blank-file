@@ -30,12 +30,12 @@ export const useSupabaseQuery = ({
     try {
       const result = await queryFn();
       
-      if (result.error) {
+      if (result?.error) {
         throw new Error(result.error.message || 'حدث خطأ في تحميل البيانات');
       }
       
-      setData(result.data || result);
-      onSuccess?.(result.data || result);
+      setData(result?.data || result);
+      onSuccess?.(result?.data || result);
     } catch (err) {
       const errorObj = err as Error;
       setError(errorObj);
@@ -61,12 +61,12 @@ export const useSupabaseQuery = ({
         
         const result = await queryFn();
         
-        if (result.error) {
+        if (result?.error) {
           throw new Error(result.error.message || 'حدث خطأ في تحميل البيانات');
         }
         
-        setData(result.data || result);
-        onSuccess?.(result.data || result);
+        setData(result?.data || result);
+        onSuccess?.(result?.data || result);
       } catch (err) {
         const errorObj = err as Error;
         setError(errorObj);
@@ -83,7 +83,7 @@ export const useSupabaseQuery = ({
     };
 
     fetchData();
-  }, [queryKey.join(','), enabled, onSuccess, onError, queryFn, toast]);
+  }, [queryKey.join(','), enabled]); // Stable dependencies only
 
   return { data, isLoading, error, refetch };
 }

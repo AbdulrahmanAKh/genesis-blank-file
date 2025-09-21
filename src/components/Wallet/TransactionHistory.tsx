@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,7 @@ const TransactionHistory = ({ userId, userRole }: TransactionHistoryProps) => {
   // Fetch real transactions from database
   const { data: transactions = [], isLoading } = useSupabaseQuery({
     queryKey: ['wallet_transactions', userId],
-    queryFn: async () => {
+    queryFn: useCallback(async () => {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('wallet_transactions')
@@ -43,7 +43,7 @@ const TransactionHistory = ({ userId, userRole }: TransactionHistoryProps) => {
       
       if (error) throw error;
       return data || [];
-    },
+    }, [userId]),
     enabled: !!userId
   });
 

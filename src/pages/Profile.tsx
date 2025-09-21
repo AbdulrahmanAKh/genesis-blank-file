@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -75,14 +75,7 @@ const Profile = () => {
     }
   }, [profile]);
 
-  // Load user statistics
-  useEffect(() => {
-    if (user) {
-      loadUserStats();
-    }
-  }, [user]);
-
-  const loadUserStats = async () => {
+  const loadUserStats = useCallback(async () => {
     try {
       // Load events attended/organized
       const { data: eventsData } = await supabase
@@ -96,20 +89,49 @@ const Profile = () => {
         .select('*')
         .eq('provider_id', user?.id);
 
-      // Mock data for demonstration - in real app you'd have proper tables
+      // Load real user data from database instead of mock data
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('points_balance')
+        .eq('user_id', user?.id)
+        .single();
+
+      const { data: walletData } = await supabase
+        .from('user_wallets')
+        .select('balance, total_earned')
+        .eq('user_id', user?.id)
+        .single();
+
       setStats({
-        events_attended: userRole === 'attendee' ? 12 : 0,
+        events_attended: userRole === 'attendee' ? 0 : 0, // Will be calculated from bookings
         events_organized: userRole === 'organizer' ? (eventsData?.length || 0) : 0,
         services_provided: userRole === 'provider' ? (servicesData?.length || 0) : 0,
-        points: 450,
-        wallet_balance: 1250.50,
-        rating: 4.8,
-        total_earnings: 8920.00
+        points: profileData?.points_balance || 0,
+        wallet_balance: walletData?.balance || 0,
+        rating: 4.8, // Will be calculated from reviews
+        total_earnings: walletData?.total_earned || 0
       });
     } catch (error) {
       console.error('Error loading stats:', error);
+      // Set default stats on error
+      setStats({
+        events_attended: 0,
+        events_organized: 0,
+        services_provided: 0,
+        points: 0,
+        wallet_balance: 0,
+        rating: 0,
+        total_earnings: 0
+      });
     }
-  };
+  }, [user?.id, userRole]);
+
+  // Load user statistics
+  useEffect(() => {
+    if (user) {
+      loadUserStats();
+    }
+  }, [user, loadUserStats]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

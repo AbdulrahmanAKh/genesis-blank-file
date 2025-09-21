@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,18 +52,18 @@ const Groups = () => {
   // Load groups from Supabase
   const { data: regionGroups = [], isLoading: regionLoading, refetch: refetchRegion } = useSupabaseQuery({
     queryKey: ['region-groups'],
-    queryFn: () => supabaseServices.groups.getRegionGroups()
+    queryFn: useCallback(() => supabaseServices.groups.getRegionGroups(), [])
   });
 
   const { data: eventGroups = [], isLoading: eventLoading, refetch: refetchEvent } = useSupabaseQuery({
     queryKey: ['event-groups', user?.id],
-    queryFn: () => supabaseServices.groups.getEventGroups(user?.id || ''),
+    queryFn: useCallback(() => supabaseServices.groups.getEventGroups(user?.id || ''), [user?.id]),
     enabled: !!user?.id
   });
 
   const { data: userEvents = [] } = useSupabaseQuery({
     queryKey: ['user-events', user?.id],
-    queryFn: () => supabaseServices.events.getByOrganizer(user?.id || ''),
+    queryFn: useCallback(() => supabaseServices.events.getByOrganizer(user?.id || ''), [user?.id]),
     enabled: !!user?.id && userRole === 'organizer'
   });
 

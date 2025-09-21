@@ -33,7 +33,7 @@ const PointsPage = () => {
     enabled: !!user?.id
   });
 
-  const currentPoints = loyaltyEntries.reduce((sum, entry) => {
+  const currentPoints = (loyaltyEntries || []).reduce((sum, entry) => {
     return entry.points > 0 ? sum + entry.points : sum;
   }, 0);
   const nextRewardPoints = 100;

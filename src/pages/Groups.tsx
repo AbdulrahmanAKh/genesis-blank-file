@@ -183,7 +183,7 @@ const Groups = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Array.isArray(regionGroups) ? regionGroups.filter(group =>
+                  {(regionGroups || []).filter(group =>
                     group.group_name.toLowerCase().includes(searchTerm.toLowerCase())
                   ).map((group) => (
                     <Card key={group.id} className="cursor-pointer hover:shadow-lg transition-shadow">
@@ -216,7 +216,7 @@ const Groups = () => {
                         </div>
                       </CardContent>
                     </Card>
-                  )) : []}
+                  ))}
                 </div>
               </div>
 
@@ -227,18 +227,18 @@ const Groups = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-center p-4 bg-primary/5 rounded-lg">
-                      <h3 className="text-2xl font-bold text-primary">{Array.isArray(regionGroups) ? regionGroups.length : 0}</h3>
+                      <h3 className="text-2xl font-bold text-primary">{(regionGroups || []).length}</h3>
                       <p className="text-sm text-muted-foreground">قروب متاح</p>
                     </div>
                     <div className="text-center p-4 bg-secondary/5 rounded-lg">
                       <h3 className="text-2xl font-bold text-secondary-foreground">
-                        {Array.isArray(regionGroups) ? regionGroups.reduce((sum, group) => sum + (group.current_members || 0), 0) : 0}
+                        {(regionGroups || []).reduce((sum, group) => sum + (group.current_members || 0), 0)}
                       </h3>
                       <p className="text-sm text-muted-foreground">إجمالي الأعضاء</p>
                     </div>
                     <div className="text-center p-4 bg-accent/5 rounded-lg">
                       <h3 className="text-2xl font-bold text-accent-foreground">
-                        {Array.isArray(eventGroups) ? eventGroups.filter(g => g.created_by === user?.id).length : 0}
+                        {(eventGroups || []).filter(g => g.created_by === user?.id).length}
                       </h3>
                       <p className="text-sm text-muted-foreground">قروباتي</p>
                     </div>
@@ -252,7 +252,7 @@ const Groups = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <div className="space-y-4">
-                  {Array.isArray(eventGroups) ? eventGroups.map((group) => (
+                  {(eventGroups || []).map((group) => (
                     <Card key={group.id}>
                       <CardHeader>
                         <div className="flex justify-between items-start">
@@ -315,7 +315,7 @@ const Groups = () => {
                         </div>
                       </CardContent>
                     </Card>
-                  )) : []}
+                  ))}
                 </div>
               </div>
 

@@ -112,11 +112,12 @@ const TransactionHistory = ({ userId, userRole }: TransactionHistoryProps) => {
   };
 
   const calculateTotals = () => {
-    const totalIncome = filteredTransactions
+    const safeTransactions = filteredTransactions || [];
+    const totalIncome = safeTransactions
       .filter(t => ['earning', 'refund', 'bonus'].includes(t.type) && t.status === 'completed')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-    const totalExpenses = filteredTransactions
+    const totalExpenses = safeTransactions
       .filter(t => ['payment', 'withdraw', 'commission'].includes(t.type) && t.status === 'completed')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 

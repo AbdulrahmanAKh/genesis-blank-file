@@ -264,7 +264,7 @@ const OrganizerDashboard = () => {
                   onClick={() => navigate('/wallet')}
                 >
                   <Wallet className="h-6 w-6" />
-                  <span>{t('wallet', 'المحفظة')}</span>
+                  <span>{t('wallet.title', 'المحفظة')}</span>
                 </Button>
                 
                 <Button 

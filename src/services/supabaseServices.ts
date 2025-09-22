@@ -148,7 +148,7 @@ export const bookingsService = {
   getByUser: (userId: string) =>
     supabase
       .from('bookings')
-      .select('*, events(*)')
+      .select('*, events!fk_bookings_event_id(*)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false }),
 
@@ -415,7 +415,7 @@ const bookings = {
   getByOrganizer: async (organizerId: string) => {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, events!inner(*)')
+      .select('*, events!fk_bookings_event_id!inner(*)')
       .eq('events.organizer_id', organizerId);
     if (error) throw error;
     return { data: data || [], error: null };

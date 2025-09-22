@@ -90,9 +90,9 @@ const QRScanner = () => {
         .from('tickets')
         .select(`
           *,
-          bookings(
+          bookings!fk_tickets_booking_id(
             *,
-            events(title_ar, start_date, organizer_id)
+            events!fk_bookings_event_id(title_ar, start_date, organizer_id)
           )
         `)
         .eq('ticket_number', ticketNumber)

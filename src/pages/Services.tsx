@@ -18,16 +18,16 @@ const Services = () => {
 
   // Fetch services from database
   const fetchServices = useCallback(async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from('services')
       .select(`
         *,
-        profiles!services_provider_id_fkey(full_name),
-        rating_summaries!left(average_rating, total_reviews)
+                    provider:profiles!fk_services_provider_id(full_name),
+        rating_summaries(average_rating, total_reviews),
+        categories(name, name_ar)
       `)
       .eq('status', 'active');
 
-    const { data, error } = await query;
     if (error) throw error;
     return data || [];
   }, []);
@@ -242,7 +242,7 @@ const Services = () => {
 
                     <div className="flex items-center justify-between text-sm">
                       <div className="text-muted-foreground">
-                        {service.profiles?.full_name || "مقدم خدمة"}
+                        {service.provider?.full_name || "مقدم خدمة"}
                       </div>
                       {service.rating_summaries && (
                         <div className="flex items-center gap-1">

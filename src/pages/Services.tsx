@@ -1,115 +1,112 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Star, Search, Filter, Clock, DollarSign } from "lucide-react";
+import { MapPin, Star, Search, Filter, Clock, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { supabase } from "@/integrations/supabase/client";
 
 const Services = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCity, setSelectedCity] = useState("all");
 
-  // Mock data - would come from API
-  const services = [
-    {
-      id: "1",
-      name: "تأجير معدات التسلق",
-      nameAr: "تأجير معدات التسلق",
-      description: "معدات تسلق احترافية عالية الجودة",
-      descriptionAr: "معدات تسلق احترافية عالية الجودة مع ضمان السلامة الكاملة",
-      image: "/api/placeholder/400/250",
-      location: "الرياض",
-      locationAr: "الرياض - حي النخيل",
-      price: 50,
-      duration: 480, // 8 hours
-      category: "معدات",
-      provider: {
-        name: "متجر المغامرات",
-        rating: 4.8,
-        reviewsCount: 156
-      },
-      featured: true,
-      status: "approved"
-    },
-    {
-      id: "2", 
-      name: "دليل سياحي للهايكنج",
-      nameAr: "دليل سياحي للهايكنج",
-      description: "دليل محترف لرحلات الهايكنج",
-      descriptionAr: "دليل سياحي محترف مع خبرة 10 سنوات في رحلات الهايكنج والتسلق",
-      image: "/api/placeholder/400/250",
-      location: "جدة",
-      locationAr: "جدة - منطقة الكورنيش",
-      price: 150,
-      duration: 360, // 6 hours
-      category: "إرشاد",
-      provider: {
-        name: "فريق الإرشاد المتقدم",
-        rating: 4.9,
-        reviewsCount: 89
-      },
-      featured: true,
-      status: "approved"
-    },
-    {
-      id: "3",
-      name: "تصوير الفعاليات",
-      nameAr: "تصوير الفعاليات الخارجية",
-      description: "تصوير احترافي للمغامرات",
-      descriptionAr: "خدمة تصوير احترافية للفعاليات والمغامرات الخارجية مع تحرير مجاني",
-      image: "/api/placeholder/400/250",
-      location: "الطائف",
-      locationAr: "الطائف - منطقة الشفا",
-      price: 300,
-      duration: 240, // 4 hours
-      category: "تصوير",
-      provider: {
-        name: "استوديو الطبيعة",
-        rating: 4.7,
-        reviewsCount: 67
-      },
-      featured: false,
-      status: "approved"
-    },
-    {
-      id: "4",
-      name: "وجبات صحية للرحلات",
-      nameAr: "وجبات صحية للرحلات",
-      description: "وجبات مغذية ومناسبة للأنشطة",
-      descriptionAr: "وجبات صحية ومتوازنة معدة خصيصاً للأنشطة الخارجية والرحلات الطويلة",
-      image: "/api/placeholder/400/250",
-      location: "الدمام",
-      locationAr: "الدمام - الكورنيش",
-      price: 25,
-      duration: 60, // 1 hour delivery
-      category: "طعام",
-      provider: {
-        name: "مطبخ المغامرات",
-        rating: 4.6,
-        reviewsCount: 234
-      },
-      featured: false,
-      status: "approved"
-    }
-  ];
+  // Fetch services from database
+  const fetchServices = useCallback(async () => {
+    let query = supabase
+      .from('services')
+      .select(`
+        *,
+        profiles!services_provider_id_fkey(full_name),
+        rating_summaries!left(average_rating, total_reviews)
+      `)
+      .eq('status', 'active');
 
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  }, []);
+
+  const { data: services = [], isLoading: servicesLoading } = useSupabaseQuery({
+    queryKey: ['services'],
+    queryFn: fetchServices
+  });
+
+  // Fetch categories for filtering
+  const fetchCategories = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name_ar');
+    
+    if (error) throw error;
+    return data || [];
+  }, []);
+
+  const { data: categoriesData = [] } = useSupabaseQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories
+  });
+
+  // Build categories filter options
   const categories = [
     { value: "all", label: "جميع الخدمات" },
-    { value: "equipment", label: "معدات" },
-    { value: "guide", label: "إرشاد" },
-    { value: "photography", label: "تصوير" },
-    { value: "food", label: "طعام" },
-    { value: "transport", label: "نقل" }
+    ...categoriesData.map(cat => ({
+      value: cat.id,
+      label: cat.name_ar || cat.name
+    }))
   ];
 
+  const cities = [
+    { value: "all", label: "جميع المدن" },
+    { value: "riyadh", label: "الرياض" },
+    { value: "jeddah", label: "جدة" },
+    { value: "taif", label: "الطائف" },
+    { value: "dammam", label: "الدمام" }
+  ];
+
+  // Filter services based on search and filters
+  const filteredServices = services.filter(service => {
+    const matchesSearch = searchQuery === "" || 
+      service.name_ar?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.description_ar?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.location_ar?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesCategory = selectedCategory === "all" || service.category_id === selectedCategory;
+    
+    const matchesCity = selectedCity === "all" || 
+      service.location_ar?.toLowerCase().includes(cities.find(c => c.value === selectedCity)?.label.toLowerCase());
+
+    return matchesSearch && matchesCategory && matchesCity;
+  });
+
   const formatDuration = (minutes: number) => {
+    if (!minutes) return "";
     if (minutes < 60) return `${minutes} دقيقة`;
     const hours = Math.floor(minutes / 60);
     return `${hours} ساعة`;
   };
+
+  if (servicesLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin" />
+            <span className="mr-2">جاري تحميل الخدمات...</span>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -139,7 +136,7 @@ const Services = () => {
               />
             </div>
 
-            <Select>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger>
                 <SelectValue placeholder="نوع الخدمة" />
               </SelectTrigger>
@@ -152,16 +149,16 @@ const Services = () => {
               </SelectContent>
             </Select>
 
-            <Select>
+            <Select value={selectedCity} onValueChange={setSelectedCity}>
               <SelectTrigger>
                 <SelectValue placeholder="المدينة" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">جميع المدن</SelectItem>
-                <SelectItem value="riyadh">الرياض</SelectItem>
-                <SelectItem value="jeddah">جدة</SelectItem>
-                <SelectItem value="taif">الطائف</SelectItem>
-                <SelectItem value="dammam">الدمام</SelectItem>
+                {cities.map((city) => (
+                  <SelectItem key={city.value} value={city.value}>
+                    {city.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -175,88 +172,109 @@ const Services = () => {
         {/* Results */}
         <div className="mb-6">
           <p className="text-muted-foreground">
-            تم العثور على {services.length} خدمة
+            تم العثور على {filteredServices.length} خدمة
           </p>
         </div>
 
         {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((service) => (
-            <Card key={service.id} className="overflow-hidden group hover:shadow-lg smooth-transition adventure-shadow">
-              <div className="relative">
-                <img 
-                  src={service.image} 
-                  alt={service.name}
-                  className="w-full h-48 object-cover group-hover:scale-105 smooth-transition"
-                />
-                {service.featured && (
-                  <div className="absolute top-4 right-4">
-                    <Badge className="bg-yellow-500 text-white">
-                      مميز
-                    </Badge>
-                  </div>
-                )}
-                <div className="absolute bottom-4 right-4">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1">
-                    <span className="text-sm font-bold text-primary">
-                      {service.price} ريال
-                    </span>
-                    <span className="text-xs text-muted-foreground block">
-                      {formatDuration(service.duration)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <CardContent className="p-6">
-                <div className="space-y-3">
-                  <h3 className="text-xl font-semibold text-foreground group-hover:text-primary smooth-transition">
-                    {service.nameAr}
-                  </h3>
-                  
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {service.descriptionAr}
-                  </p>
-                  
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      {service.locationAr}
+        {filteredServices.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">🔍</div>
+            <h3 className="text-lg font-semibold mb-2">لا توجد خدمات متاحة</h3>
+            <p className="text-muted-foreground">جرب البحث بكلمات أخرى أو تغيير الفلاتر</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredServices.map((service) => (
+              <Card key={service.id} className="overflow-hidden group hover:shadow-lg smooth-transition adventure-shadow">
+                <div className="relative">
+                  <img 
+                    src={service.image_url || "/placeholder.svg"} 
+                    alt={service.name_ar || service.name}
+                    className="w-full h-48 object-cover group-hover:scale-105 smooth-transition"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.svg";
+                    }}
+                  />
+                  {service.featured && (
+                    <div className="absolute top-4 right-4">
+                      <Badge className="bg-yellow-500 text-white">
+                        مميز
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {formatDuration(service.duration)}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="text-muted-foreground">
-                      {service.provider.name}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-medium">{service.provider.rating}</span>
-                      <span className="text-muted-foreground">({service.provider.reviewsCount})</span>
+                  )}
+                  <div className="absolute bottom-4 right-4">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1">
+                      <span className="text-sm font-bold text-primary">
+                        {service.price} ريال
+                      </span>
+                      {service.duration_minutes && (
+                        <span className="text-xs text-muted-foreground block">
+                          {formatDuration(service.duration_minutes)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-              </CardContent>
 
-              <CardFooter className="px-6 pb-6">
-                <div className="flex gap-2 w-full">
-                  <Button asChild variant="outline" className="flex-1">
-                    <Link to={`/service/${service.id}`}>
-                      التفاصيل
-                    </Link>
-                  </Button>
-                  <Button className="flex-1">
-                    احجز الآن
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                <CardContent className="p-6">
+                  <div className="space-y-3">
+                    <h3 className="text-xl font-semibold text-foreground group-hover:text-primary smooth-transition">
+                      {service.name_ar || service.name}
+                    </h3>
+                    
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {service.description_ar || service.description}
+                    </p>
+                    
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-4 h-4" />
+                        {service.location_ar || service.location}
+                      </div>
+                      {service.duration_minutes && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {formatDuration(service.duration_minutes)}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="text-muted-foreground">
+                        {service.profiles?.full_name || "مقدم خدمة"}
+                      </div>
+                      {service.rating_summaries && (
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">
+                            {service.rating_summaries.average_rating?.toFixed(1) || "0.0"}
+                          </span>
+                          <span className="text-muted-foreground">
+                            ({service.rating_summaries.total_reviews || 0})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+
+                <CardFooter className="px-6 pb-6">
+                  <div className="flex gap-2 w-full">
+                    <Button asChild variant="outline" className="flex-1">
+                      <Link to={`/service/${service.id}`}>
+                        التفاصيل
+                      </Link>
+                    </Button>
+                    <Button className="flex-1">
+                      احجز الآن
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* CTA Section */}
         <div className="mt-16 text-center bg-primary/5 rounded-2xl p-8">

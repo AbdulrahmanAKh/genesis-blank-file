@@ -56,7 +56,7 @@ const Services = () => {
   // Build categories filter options
   const categories = [
     { value: "all", label: "جميع الخدمات" },
-    ...categoriesData.map(cat => ({
+    ...(categoriesData || []).map(cat => ({
       value: cat.id,
       label: cat.name_ar || cat.name
     }))
@@ -71,7 +71,7 @@ const Services = () => {
   ];
 
   // Filter services based on search and filters
-  const filteredServices = services.filter(service => {
+  const filteredServices = (services || []).filter(service => {
     const matchesSearch = searchQuery === "" || 
       service.name_ar?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       service.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||

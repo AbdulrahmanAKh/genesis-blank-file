@@ -22,9 +22,8 @@ const Services = () => {
       .from('services')
       .select(`
         *,
-                    provider:profiles!fk_services_provider_id(full_name),
-        rating_summaries(average_rating, total_reviews),
-        categories(name, name_ar)
+        provider:profiles!fk_services_provider_id(full_name),
+        categories!fk_services_category_id(name, name_ar)
       `)
       .eq('status', 'active');
 

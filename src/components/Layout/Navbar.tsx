@@ -12,11 +12,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguageContext } from '@/contexts/LanguageContext';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { language, setLanguage, t, isRTL } = useLanguageContext();
   const { user, userRole, signOut } = useAuth();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -134,7 +136,11 @@ const Navbar = () => {
                 <Button variant="ghost" size="icon" className="relative" asChild>
                   <Link to="/notifications">
                     <Bell className="w-4 h-4" />
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs"></span>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center px-1">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 </Button>
 
@@ -254,18 +260,25 @@ const Navbar = () => {
                     <Button variant="ghost" size="icon" onClick={toggleLanguage}>
                       <Globe className="w-4 h-4" />
                     </Button>
-                    {user && (
-                      <>
-                        <Button variant="ghost" size="icon">
-                          <Bell className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" asChild>
-                          <Link to="/wallet">
-                            <Wallet className="w-4 h-4" />
-                          </Link>
-                        </Button>
-                      </>
-                    )}
+                     {user && (
+                       <>
+                         <Button variant="ghost" size="icon" className="relative" asChild>
+                           <Link to="/notifications">
+                             <Bell className="w-4 h-4" />
+                             {unreadCount > 0 && (
+                               <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center px-1">
+                                 {unreadCount > 99 ? '99+' : unreadCount}
+                               </span>
+                             )}
+                           </Link>
+                         </Button>
+                         <Button variant="ghost" size="icon" asChild>
+                           <Link to="/wallet">
+                             <Wallet className="w-4 h-4" />
+                           </Link>
+                         </Button>
+                       </>
+                     )}
                   </div>
                   
                   <div className="px-3 py-2">

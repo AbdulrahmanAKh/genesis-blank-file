@@ -241,34 +241,34 @@ const ServiceDetails = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Avatar className="w-16 h-16">
-                      <AvatarImage src={service.provider.avatar} />
+                      <AvatarImage src={service.profiles?.avatar_url} />
                       <AvatarFallback>
                         <User className="w-8 h-8" />
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-semibold">{service.provider.name}</h3>
-                        {service.provider.verified && (
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        )}
+                        <h3 className="text-lg font-semibold">{service.profiles?.full_name || 'مقدم الخدمة'}</h3>
+                        <CheckCircle className="w-5 h-5 text-green-600" />
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                          {service.provider.rating}
+                          {averageRating > 0 ? averageRating.toFixed(1) : 'لا يوجد'}
                         </div>
-                        <span>{service.provider.servicesCount} خدمة</span>
-                        <span>عضو منذ {service.provider.joinDate}</span>
+                        <span>خدمة متميزة</span>
+                        <span>مقدم خدمة معتمد</span>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Phone className="w-3 h-3" />
-                          {service.provider.phone}
-                        </div>
+                        {service.profiles?.phone && (
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Phone className="w-3 h-3" />
+                            {service.profiles.phone}
+                          </div>
+                        )}
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <Mail className="w-3 h-3" />
-                          {service.provider.email}
+                          تواصل عبر الواتساب
                         </div>
                       </div>
                     </div>

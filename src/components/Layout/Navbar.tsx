@@ -59,7 +59,6 @@ const Navbar = () => {
           { title: "استكشاف", href: "/explore", titleEn: "Explore" },
           { title: "فعالياتي", href: "/my-events", titleEn: "My Events" },
           { title: "القروبات", href: "/groups", titleEn: "Groups" },
-          { title: "المحفظة", href: "/wallet", titleEn: "Wallet" },
           { title: "النقاط", href: "/points", titleEn: "Points" },
           { title: "تواصل معنا", href: "/contact", titleEn: "Contact" },
         ];
@@ -67,9 +66,7 @@ const Navbar = () => {
         return [
           ...baseItems,
           { title: "إنشاء فعالية", href: "/create-event", titleEn: "Create Event" },
-          { title: "إدارة الفعاليات", href: "/manage-events", titleEn: "Manage Events" },
           { title: "القروبات", href: "/groups", titleEn: "Groups" },
-          { title: "المحفظة", href: "/wallet", titleEn: "Wallet" },
           { title: "النقاط", href: "/points", titleEn: "Points" },
           { title: "تواصل معنا", href: "/contact", titleEn: "Contact" },
         ];
@@ -79,7 +76,6 @@ const Navbar = () => {
           { title: "إضافة خدمة", href: "/create-service", titleEn: "Add Service" },
           { title: "إدارة الخدمات", href: "/manage-services", titleEn: "Manage Services" },
           { title: "القروبات", href: "/groups", titleEn: "Groups" },
-          { title: "المحفظة", href: "/wallet", titleEn: "Wallet" },
           { title: "النقاط", href: "/points", titleEn: "Points" },
           { title: "تواصل معنا", href: "/contact", titleEn: "Contact" },
         ];

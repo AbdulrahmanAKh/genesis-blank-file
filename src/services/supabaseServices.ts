@@ -19,7 +19,7 @@ export const eventsService = {
   getByOrganizer: (organizerId: string) =>
     supabase
       .from('events')
-      .select('*, categories!fk_events_category_id(*)')
+      .select('*, categories!fk_events_category_id(*), bookings!fk_bookings_event_id(*)')
       .eq('organizer_id', organizerId)
       .order('created_at', { ascending: false }),
 
@@ -58,14 +58,14 @@ export const servicesService = {
   getAll: () =>
     supabase
       .from('services')
-      .select('*, categories(*)')
+      .select('*, categories!fk_services_category_id(*), profiles!fk_services_provider_id(*)')
       .eq('status', 'approved')
       .order('created_at', { ascending: false }),
 
   getById: (id: string) =>
     supabase
       .from('services')
-      .select('*, categories(*)')
+      .select('*, categories!fk_services_category_id(*), profiles!fk_services_provider_id(*)')
       .eq('id', id)
       .single(),
 

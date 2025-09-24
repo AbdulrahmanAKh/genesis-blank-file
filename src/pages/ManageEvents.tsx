@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Calendar, MapPin, Users, Eye, Edit, Trash2, Plus, Search, QrCode, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { eventsService } from '@/services/supabaseServices';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -49,31 +50,19 @@ const ManageEventsPage = () => {
 
   const fetchEvents = async () => {
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select(`
-          *,
-          bookings!fk_bookings_event_id (
-            id,
-            total_amount,
-            status,
-            quantity
-          )
-        `)
-        .eq('organizer_id', user?.id)
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await eventsService.getByOrganizer(user?.id || '');
+      
       if (error) throw error;
 
-      // Fetch ratings separately for each event
-      const eventsWithData = await Promise.all(data.map(async (event) => {
+      // Process events data with revenue calculations
+      const eventsWithData = await Promise.all((data || []).map(async (event) => {
         // Get ratings for this event
         const { data: ratingsData } = await supabase
           .from('rating_summaries')
           .select('average_rating, total_reviews')
           .eq('entity_id', event.id)
           .eq('entity_type', 'event')
-          .single();
+          .maybeSingle();
 
         return {
           ...event,

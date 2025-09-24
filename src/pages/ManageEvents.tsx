@@ -220,32 +220,52 @@ const ManageEventsPage = () => {
             )}
             
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" className="gap-2">
-                <Eye className="h-4 w-4" />
-                عرض
+              <Button size="sm" variant="outline" asChild className="gap-2">
+                <Link to={`/event-details/${event.id}`}>
+                  <Eye className="h-4 w-4" />
+                  عرض
+                </Link>
               </Button>
               {event.status !== 'completed' && (
                 <>
-                  <Button size="sm" variant="outline" className="gap-2">
-                    <Edit className="h-4 w-4" />
-                    تعديل
+                  <Button size="sm" variant="outline" asChild className="gap-2">
+                    <Link to={`/create-event?edit=${event.id}`}>
+                      <Edit className="h-4 w-4" />
+                      تعديل
+                    </Link>
                   </Button>
-                  <Button size="sm" variant="outline" className="gap-2">
-                    <Users className="h-4 w-4" />
-                    المشاركين
+                  <Button size="sm" variant="outline" asChild className="gap-2">
+                    <Link to={`/event-management?tab=attendees&event=${event.id}`}>
+                      <Users className="h-4 w-4" />
+                      المشاركين
+                    </Link>
                   </Button>
-                  <Button size="sm" variant="outline" className="gap-2">
-                    <QrCode className="h-4 w-4" />
-                    QR Code
+                  <Button size="sm" variant="outline" asChild className="gap-2">
+                    <Link to={`/qr-scanner?mode=generate&event=${event.id}`}>
+                      <QrCode className="h-4 w-4" />
+                      QR Code
+                    </Link>
                   </Button>
-                  <Button size="sm" variant="outline" className="gap-2">
-                    <MessageCircle className="h-4 w-4" />
-                    مجموعة الحدث
+                  <Button size="sm" variant="outline" asChild className="gap-2">
+                    <Link to={`/groups?event=${event.id}`}>
+                      <MessageCircle className="h-4 w-4" />
+                      مجموعة الحدث
+                    </Link>
                   </Button>
                 </>
               )}
               {event.status === 'active' && (
-                <Button size="sm" variant="destructive" className="gap-2">
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  className="gap-2"
+                  onClick={() => {
+                    if (window.confirm('هل أنت متأكد من إلغاء هذه الفعالية؟')) {
+                      // Handle cancellation
+                      toast.error('وظيفة إلغاء الفعالية قيد التطوير');
+                    }
+                  }}
+                >
                   <Trash2 className="h-4 w-4" />
                   إلغاء
                 </Button>

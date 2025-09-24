@@ -53,7 +53,7 @@ const ManageEventsPage = () => {
         .from('events')
         .select(`
           *,
-          bookings (
+          bookings!fk_bookings_event_id (
             id,
             total_amount,
             status,

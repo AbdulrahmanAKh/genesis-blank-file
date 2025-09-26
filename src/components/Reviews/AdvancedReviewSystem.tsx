@@ -145,47 +145,87 @@ const AdvancedReviewSystem: React.FC<AdvancedReviewSystemProps> = ({
 
   const loadReviews = async () => {
     try {
-      const { data, error } = await supabase
+      // Load reviews from database
+      const { data: reviewsData, error: reviewsError } = await supabase
         .from('reviews')
         .select('*')
         .eq(entityType === 'event' ? 'event_id' : 'service_id', entityId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (reviewsError) throw reviewsError;
 
-      const mappedReviews: Review[] = (data || []).map(review => ({
-        id: review.id,
-        userId: review.user_id,
-        userName: `مستخدم ${review.user_id.slice(0, 8)}`,
-        userAvatar: undefined,
-        isVerifiedBooking: !!review.booking_id,
-        rating: review.rating,
-        categoryRatings: {
-          organization: review.rating,
-          value: review.rating,
-          safety: review.rating,
-          experience: review.rating,
-          guide: review.rating
-        },
-        title: `تقييم ${review.rating} نجوم`,
-        comment: review.comment || '',
-        helpful: review.helpful_count || 0,
-        notHelpful: 0,
-        createdAt: new Date(review.created_at),
-        eventTitle: entityType === 'event' ? 'الفعالية' : 'الخدمة',
-        eventDate: new Date(review.created_at),
-        isRecommended: review.rating >= 4,
-        pros: [],
-        cons: [],
-        tags: []
-      }));
+      // Get user profiles for the reviews
+      const userIds = [...new Set(reviewsData?.map(r => r.user_id) || [])];
+      let userProfiles: any = {};
+      
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, avatar_url')
+          .in('user_id', userIds);
+        
+        userProfiles = (profilesData || []).reduce((acc: any, profile) => {
+          acc[profile.user_id] = profile;
+          return acc;
+        }, {});
+      }
+
+      const mappedReviews: Review[] = (reviewsData || []).map(review => {
+        const userProfile = userProfiles[review.user_id];
+        return {
+          id: review.id,
+          userId: review.user_id,
+          userName: userProfile?.full_name || `مستخدم ${review.user_id.slice(0, 8)}`,
+          userAvatar: userProfile?.avatar_url,
+          isVerifiedBooking: !!review.booking_id,
+          rating: review.rating,
+          categoryRatings: {
+            organization: review.rating,
+            value: review.rating,
+            safety: review.rating,
+            experience: review.rating,
+            guide: review.rating
+          },
+          title: `تقييم ${review.rating} نجوم`,
+          comment: review.comment || '',
+          helpful: review.helpful_count || 0,
+          notHelpful: 0,
+          createdAt: new Date(review.created_at),
+          eventTitle: entityType === 'event' ? 'الفعالية' : 'الخدمة',
+          eventDate: new Date(review.created_at),
+          isRecommended: review.rating >= 4,
+          pros: [],
+          cons: [],
+          tags: []
+        };
+      });
 
       setReviews(mappedReviews);
       calculateSummary(mappedReviews);
+      
+      // Trigger rating calculation
+      await calculateRatings();
     } catch (error) {
       console.error('Error loading reviews:', error);
       setReviews([]);
       setSummary(null);
+    }
+  };
+
+  const calculateRatings = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('calculate-ratings', {
+        body: {
+          entityId,
+          entityType
+        }
+      });
+
+      if (error) {
+        console.error('Error calculating ratings:', error);
+      }
+    } catch (error) {
+      console.error('Error calling calculate-ratings function:', error);
     }
   };
 
@@ -370,12 +410,32 @@ const AdvancedReviewSystem: React.FC<AdvancedReviewSystemProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Get current user ID (you'll need to implement this based on your auth system)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Submit review to database
+      const reviewData = {
+        [entityType === 'event' ? 'event_id' : 'service_id']: entityId,
+        user_id: user.id,
+        booking_id: userBookingId,
+        rating: newReview.rating,
+        comment: newReview.comment.trim()
+      };
+
+      const { data, error } = await supabase
+        .from('reviews')
+        .insert([reviewData])
+        .select()
+        .single();
+
+      if (error) throw error;
 
       const review: Review = {
-        id: Date.now().toString(),
-        userId: 'current-user',
+        id: data.id,
+        userId: data.user_id,
         userName: 'المستخدم الحالي',
         isVerifiedBooking: !!userBookingId,
         rating: newReview.rating,
@@ -421,7 +481,11 @@ const AdvancedReviewSystem: React.FC<AdvancedReviewSystemProps> = ({
       });
 
       onReviewSubmitted?.(review);
+      
+      // Trigger rating recalculation
+      await calculateRatings();
     } catch (error) {
+      console.error('Error submitting review:', error);
       toast({
         title: t('error'),
         description: t('failedToSubmitReview'),

@@ -59,13 +59,17 @@ const InteractiveMapbox: React.FC<InteractiveMapboxProps> = ({
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
+    // Get API key from localStorage or props
+    const storedApiKey = localStorage.getItem('mapbox_token');
+    const mapboxToken = apiKey || storedApiKey;
+    
     // Check if API key is provided
-    if (!apiKey) {
+    if (!mapboxToken) {
       return;
     }
 
     // Initialize map with API key
-    mapboxgl.accessToken = apiKey;
+    mapboxgl.accessToken = mapboxToken;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -267,7 +271,8 @@ const InteractiveMapbox: React.FC<InteractiveMapboxProps> = ({
     map.current?.setStyle(nextStyle);
   };
 
-  if (!apiKey) {
+  const storedApiKey = localStorage.getItem('mapbox_token');
+  if (!apiKey && !storedApiKey) {
     return (
       <Card className="w-full h-96">
         <CardHeader>
@@ -278,17 +283,17 @@ const InteractiveMapbox: React.FC<InteractiveMapboxProps> = ({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            {t('mapboxApiKeyRequired')}
+            يتطلب عرض الخريطة التفاعلية مفتاح API من Mapbox
           </p>
           <div className="space-y-2">
             <Input
-              placeholder={t('enterMapboxToken')}
+              placeholder="أدخل مفتاح Mapbox API"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               type="password"
             />
             <p className="text-xs text-muted-foreground">
-              {t('getTokenFromMapbox')}{' '}
+              احصل على مفتاح مجاني من{' '}
               <a 
                 href="https://account.mapbox.com/access-tokens/" 
                 target="_blank" 

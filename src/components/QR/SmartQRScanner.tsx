@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguageContext } from '@/contexts/LanguageContext';
+import jsQR from 'jsqr';
 import { 
   QrCode, 
   Scan, 
@@ -202,11 +203,12 @@ const SmartQRScanner: React.FC<SmartQRScannerProps> = ({
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Simulate QR code detection (in real app, use a QR library like jsQR)
-    // For demo purposes, we'll simulate finding a QR code randomly
-    if (Math.random() > 0.95) { // 5% chance of detecting QR per frame
-      const mockQRCode = 'QR-TMH-001-2024-12345';
-      processQRCode(mockQRCode);
+    // Real QR code detection using jsQR
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+    
+    if (qrCode) {
+      processQRCode(qrCode.data);
     }
   };
 
@@ -280,17 +282,39 @@ const SmartQRScanner: React.FC<SmartQRScannerProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // In a real app, you would use a QR code reading library
-    // For demo, we'll simulate reading a QR code from the image
     toast({
       title: t('fileUploaded'),
       description: t('processingImage'),
     });
 
-    setTimeout(() => {
-      // Simulate finding QR code in uploaded image
-      processQRCode('QR-RSD-002-2024-67890');
-    }, 2000);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (!context) return;
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+        context.drawImage(img, 0, 0);
+
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (qrCode) {
+          processQRCode(qrCode.data);
+        } else {
+          toast({
+            title: t('noQRFound'),
+            description: t('noQRFoundInImage'),
+            variant: 'destructive'
+          });
+        }
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const loadScanHistory = () => {

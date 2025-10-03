@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,7 @@ import { Plus, Edit, Trash2, Users } from 'lucide-react';
 
 export const RegionalGroupsTab = () => {
   const [groups, setGroups] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<any>(null);
@@ -19,12 +21,30 @@ export const RegionalGroupsTab = () => {
     name: '',
     name_ar: '',
     region: '',
-    description: ''
+    description: '',
+    selectedCityId: ''
   });
 
   useEffect(() => {
     loadGroups();
+    loadCities();
   }, []);
+
+  const loadCities = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('cities')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
+      setCities(data || []);
+    } catch (error) {
+      console.error('Error loading cities:', error);
+      toast.error('حدث خطأ في تحميل المدن');
+    }
+  };
 
   const loadGroups = async () => {
     try {
@@ -92,6 +112,19 @@ export const RegionalGroupsTab = () => {
     }
   };
 
+  const handleCitySelect = (cityId: string) => {
+    const selectedCity = cities.find(c => c.id === cityId);
+    if (selectedCity) {
+      setFormData({
+        ...formData,
+        selectedCityId: cityId,
+        name: selectedCity.name,
+        name_ar: selectedCity.name_ar,
+        region: selectedCity.region || selectedCity.region_ar || ''
+      });
+    }
+  };
+
   const openDialog = (group?: any) => {
     if (group) {
       setEditingGroup(group);
@@ -99,11 +132,12 @@ export const RegionalGroupsTab = () => {
         name: group.name,
         name_ar: group.name_ar,
         region: group.region,
-        description: group.description || ''
+        description: group.description || '',
+        selectedCityId: ''
       });
     } else {
       setEditingGroup(null);
-      setFormData({ name: '', name_ar: '', region: '', description: '' });
+      setFormData({ name: '', name_ar: '', region: '', description: '', selectedCityId: '' });
     }
     setDialogOpen(true);
   };
@@ -131,6 +165,24 @@ export const RegionalGroupsTab = () => {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
+                  <Label htmlFor="city">المدينة *</Label>
+                  <Select
+                    value={formData.selectedCityId}
+                    onValueChange={handleCitySelect}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر المدينة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cities.map((city) => (
+                        <SelectItem key={city.id} value={city.id}>
+                          {city.name_ar} - {city.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label htmlFor="name_ar">الاسم (عربي) *</Label>
                   <Input
                     id="name_ar"
@@ -138,6 +190,7 @@ export const RegionalGroupsTab = () => {
                     onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
                     placeholder="مجموعة الرياض"
                     required
+                    disabled={!formData.selectedCityId && !editingGroup}
                   />
                 </div>
                 <div>
@@ -148,6 +201,7 @@ export const RegionalGroupsTab = () => {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Riyadh Group"
                     required
+                    disabled={!formData.selectedCityId && !editingGroup}
                   />
                 </div>
                 <div>
@@ -158,6 +212,7 @@ export const RegionalGroupsTab = () => {
                     onChange={(e) => setFormData({ ...formData, region: e.target.value })}
                     placeholder="الرياض"
                     required
+                    disabled={!formData.selectedCityId && !editingGroup}
                   />
                 </div>
                 <div>

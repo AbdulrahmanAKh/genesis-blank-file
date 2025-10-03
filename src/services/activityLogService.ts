@@ -30,17 +30,22 @@ export const activityLogService = {
   },
 
   async getRecentLogs(limit = 50) {
-    const { data, error } = await supabase
-      .from('admin_activity_logs')
-      .select(`
-        *,
-        profiles!inner(full_name)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    try {
+      const { data, error } = await supabase
+        .from('admin_activity_logs')
+        .select(`
+          *,
+          profiles!admin_activity_logs_admin_id_fkey(full_name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-    if (error) throw error;
-    return data;
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+      return [];
+    }
   },
 
   async getLogsByAdmin(adminId: string, limit = 50) {
@@ -56,17 +61,22 @@ export const activityLogService = {
   },
 
   async getLogsByEntity(entityType: string, entityId: string) {
-    const { data, error } = await supabase
-      .from('admin_activity_logs')
-      .select(`
-        *,
-        profiles!inner(full_name)
-      `)
-      .eq('entity_type', entityType)
-      .eq('entity_id', entityId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('admin_activity_logs')
+        .select(`
+          *,
+          profiles!admin_activity_logs_admin_id_fkey(full_name)
+        `)
+        .eq('entity_type', entityType)
+        .eq('entity_id', entityId)
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching entity logs:', error);
+      return [];
+    }
   }
 };

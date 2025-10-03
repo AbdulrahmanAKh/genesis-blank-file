@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguageContext } from '@/contexts/LanguageContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { supabase } from '@/integrations/supabase/client';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -149,15 +150,27 @@ const Navbar = () => {
             {user ? (
               <>
                 {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative" asChild>
-                  <Link to="/notifications">
-                    <Bell className="w-4 h-4" />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center px-1">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
-                  </Link>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="relative" 
+                  onClick={async () => {
+                    if (user?.id) {
+                      await supabase
+                        .from('notifications')
+                        .update({ read: true })
+                        .eq('user_id', user.id)
+                        .eq('read', false);
+                    }
+                    navigate('/notifications');
+                  }}
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center px-1">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Button>
 
                 {/* Wallet */}

@@ -93,7 +93,7 @@ const ServiceDetails = () => {
         .from('services')
         .select(`
           *,
-          profiles:provider_id (
+          profiles!services_provider_id_fkey (
             full_name,
             phone,
             avatar_url

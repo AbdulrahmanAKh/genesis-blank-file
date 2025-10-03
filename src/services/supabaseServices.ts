@@ -464,9 +464,9 @@ const services = {};
 const groups = {
   getRegionGroups: async () => {
     const { data, error } = await supabase
-      .from('event_groups')
+      .from('regional_groups')
       .select('*')
-      .eq('group_type', 'region');
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
   },

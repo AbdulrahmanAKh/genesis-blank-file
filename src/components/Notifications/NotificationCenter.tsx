@@ -114,19 +114,25 @@ export const NotificationCenter = () => {
 
   const deleteNotification = async (notificationId: string) => {
     try {
+      // Optimistic UI update - remove from local state immediately
       const { error } = await supabase
         .from('notifications')
         .delete()
         .eq('id', notificationId);
 
       if (error) throw error;
+      
+      // Refetch to sync with server
       refetch();
+      
       toast({
         title: "تم الحذف",
         description: "تم حذف الإشعار بنجاح"
       });
     } catch (error) {
       console.error('Error deleting notification:', error);
+      // Refetch on error to restore correct state
+      refetch();
       toast({
         title: "خطأ",
         description: "حدث خطأ أثناء حذف الإشعار",

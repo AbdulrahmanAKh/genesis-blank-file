@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { EmptyState, LoadingState, ErrorState } from '@/components/ui/empty-state';
+import Autoplay from "embla-carousel-autoplay";
 import { 
   Mountain, 
   Waves, 
@@ -27,6 +28,13 @@ import {
   Leaf
 } from 'lucide-react';
 import { categoriesService, statisticsService, eventsService } from '@/services/supabaseServices';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
 
 // Import category images
 import mountainImg from '@/assets/categories/mountain.jpg';
@@ -207,6 +215,10 @@ const CategorySection = () => {
   const [statistics, setStatistics] = useState<Statistic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const autoplayPlugin = useRef(
+    Autoplay({ delay: 3000, stopOnInteraction: false })
+  );
 
   const fetchData = async () => {
     try {
@@ -384,6 +396,64 @@ const CategorySection = () => {
             </Link>
           </Button>
         </div>
+
+        {/* Autoplay Slideshow */}
+        {categories.length > 0 && (
+          <div className="mt-16">
+            <Carousel
+              opts={{
+                align: "start",
+                loop: true,
+              }}
+              plugins={[autoplayPlugin.current]}
+              className="w-full"
+              onMouseEnter={() => autoplayPlugin.current.stop()}
+              onMouseLeave={() => autoplayPlugin.current.play()}
+            >
+              <CarouselContent>
+                {categories.map((category) => {
+                  const categoryImage = getCategoryImage(category.name_ar);
+                  const IconComponent = getIconComponent(category.icon_name, category.name_ar);
+                  
+                  return (
+                    <CarouselItem key={category.id} className="md:basis-1/2 lg:basis-1/3">
+                      <Link to={`/explore?category=${category.id}`}>
+                        <Card className="group overflow-hidden hover:shadow-xl smooth-transition">
+                          <div className="relative h-64">
+                            <img 
+                              src={categoryImage} 
+                              alt={category.name_ar}
+                              className="w-full h-full object-cover group-hover:scale-110 smooth-transition"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+                            
+                            <div className="absolute top-4 right-4">
+                              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border-2 border-white/30 shadow-lg">
+                                {IconComponent && <IconComponent className="w-8 h-8 text-white drop-shadow-lg" />}
+                              </div>
+                            </div>
+                            
+                            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                              <h3 className="text-2xl font-bold mb-2 drop-shadow-lg">{category.name_ar}</h3>
+                              <p className="text-sm opacity-90 line-clamp-2 mb-3 drop-shadow-md">
+                                {category.description_ar || 'استكشف أفضل الفعاليات'}
+                              </p>
+                              <Badge variant="secondary" className="bg-white/20 backdrop-blur-sm text-white border-white/30">
+                                {category.event_count} فعالية
+                              </Badge>
+                            </div>
+                          </div>
+                        </Card>
+                      </Link>
+                    </CarouselItem>
+                  );
+                })}
+              </CarouselContent>
+              <CarouselPrevious className="left-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-background" />
+              <CarouselNext className="right-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-background" />
+            </Carousel>
+          </div>
+        )}
 
         {/* Stats Section */}
         {statistics.length > 0 && (

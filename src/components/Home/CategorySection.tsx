@@ -27,13 +27,6 @@ import {
   Leaf
 } from 'lucide-react';
 import { categoriesService, statisticsService, eventsService } from '@/services/supabaseServices';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
 
 // Import category images
 import mountainImg from '@/assets/categories/mountain.jpg';
@@ -214,10 +207,6 @@ const CategorySection = () => {
   const [statistics, setStatistics] = useState<Statistic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [carouselApi, setCarouselApi] = useState<any>(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [visibleItems, setVisibleItems] = useState(4);
-  const [slidesToScroll, setSlidesToScroll] = useState(4);
 
   const fetchData = async () => {
     try {
@@ -256,40 +245,6 @@ const CategorySection = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
-
-  // Track carousel API and current slide
-  useEffect(() => {
-    if (!carouselApi) return;
-
-    const onSelect = () => {
-      setCurrentSlide(carouselApi.selectedScrollSnap());
-    };
-
-    carouselApi.on('select', onSelect);
-    onSelect();
-
-    return () => {
-      carouselApi.off('select', onSelect);
-    };
-  }, [carouselApi]);
-
-  // Update visible items and slides to scroll based on screen size
-  useEffect(() => {
-    const updateCarouselSettings = () => {
-      const width = window.innerWidth;
-      let items = 4;
-      if (width < 640) items = 1;      // mobile
-      else if (width < 768) items = 2; // sm
-      else if (width < 1024) items = 3; // md
-      
-      setVisibleItems(items);
-      setSlidesToScroll(items); // Match scroll to visible
-    };
-    
-    updateCarouselSettings();
-    window.addEventListener('resize', updateCarouselSettings);
-    return () => window.removeEventListener('resize', updateCarouselSettings);
   }, []);
 
   const getIconComponent = (iconName?: string, categoryName?: string): React.ComponentType<{ className?: string }> => {
@@ -419,81 +374,6 @@ const CategorySection = () => {
           })}
         </div>
 
-        {/* Featured Categories Carousel */}
-        <div className="relative">
-          <Carousel
-            opts={{
-              align: "start",
-              loop: true,
-              slidesToScroll: slidesToScroll,
-              skipSnaps: false,
-            }}
-            setApi={setCarouselApi}
-            className="w-full"
-          >
-            <CarouselContent>
-              {categories.map((category) => {
-                const IconComponent = getIconComponent(category.icon_name, category.name_ar);
-                const categoryImage = getCategoryImage(category.name_ar);
-                
-                return (
-                  <CarouselItem key={category.id} className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                    <Card className="group overflow-hidden hover:shadow-xl smooth-transition h-full">
-                      <Link to={`/explore?category=${category.id}`}>
-                        <div className="relative">
-                          <div className="w-full h-48 relative overflow-hidden">
-                            <img 
-                              src={categoryImage} 
-                              alt={category.name_ar}
-                              className="w-full h-full object-cover group-hover:scale-110 smooth-transition"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-                          </div>
-                          <div className="absolute top-4 right-4">
-                            <div className="w-14 h-14 rounded-full bg-white/25 backdrop-blur-md flex items-center justify-center border-2 border-white/40 shadow-lg">
-                              {IconComponent && <IconComponent className="w-7 h-7 text-white drop-shadow-lg" />}
-                            </div>
-                          </div>
-                          <div className="absolute bottom-4 right-4 left-4 text-white">
-                            <h3 className="text-xl font-bold mb-1 drop-shadow-lg">{category.name_ar}</h3>
-                            <p className="text-sm opacity-90 line-clamp-2 drop-shadow-md">{category.description_ar || 'استكشف أفضل الفعاليات'}</p>
-                          </div>
-                        </div>
-
-                        <CardContent className="p-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Badge variant="secondary" className="hover:bg-primary hover:text-primary-foreground smooth-transition">
-                                {category.event_count} فعالية
-                              </Badge>
-                            </div>
-                            <Button variant="outline" size="sm">
-                              استكشف
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Link>
-                    </Card>
-                  </CarouselItem>
-                );
-              })}
-            </CarouselContent>
-            <CarouselPrevious className="left-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-background" />
-            <CarouselNext className="right-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-background" />
-          </Carousel>
-
-          {/* Dynamic Counter */}
-          <div className="text-center mt-6">
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium">
-                عرض {currentSlide + 1}-{Math.min(currentSlide + visibleItems, categories.length)}
-              </span>
-              {' من '}
-              <span className="font-medium">{categories.length}</span>
-              {' تصنيف'}
-            </div>
-          </div>
-        </div>
 
         {/* View All Button */}
         <div className="text-center mt-12">

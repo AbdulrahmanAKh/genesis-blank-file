@@ -25,7 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { supabaseServices } from "@/services/supabaseServices";
-import { MapTilerLocationPicker } from "@/components/Maps/MapTilerLocationPicker";
+import { GoogleMapLocationPicker } from "@/components/Maps/GoogleMapLocationPicker";
 
 const formSchema = z.object({
   title: z.string().min(3, "العنوان يجب أن يكون 3 أحرف على الأقل"),
@@ -373,16 +373,12 @@ const CreateEvent = () => {
                     </Button>
                     {showMapPicker && (
                       <div className="mt-4">
-                        <MapTilerLocationPicker
-                          onLocationSelect={(lat, lng, address) => {
-                            setSelectedCoordinates({ lat, lng });
-                            form.setValue('locationAr', address);
-                            form.setValue('location', address);
-                            form.setValue('latitude', lat.toString());
-                            form.setValue('longitude', lng.toString());
+                        <GoogleMapLocationPicker
+                          onLocationSelect={(location) => {
+                            setSelectedCoordinates({ lat: location.lat, lng: location.lng });
+                            form.setValue('locationAr', location.address);
+                            form.setValue('location', location.address);
                           }}
-                          initialLat={selectedCoordinates?.lat || 24.7136}
-                          initialLng={selectedCoordinates?.lng || 46.6753}
                         />
                       </div>
                     )}

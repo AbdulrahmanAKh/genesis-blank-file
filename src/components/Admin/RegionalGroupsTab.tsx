@@ -67,10 +67,17 @@ export const RegionalGroupsTab = () => {
     e.preventDefault();
     
     try {
+      const submitData = {
+        name: formData.name,
+        name_ar: formData.name_ar,
+        region: formData.region,
+        description: formData.description
+      };
+      
       if (editingGroup) {
         const { error } = await supabase
           .from('regional_groups' as any)
-          .update(formData)
+          .update(submitData)
           .eq('id', editingGroup.id);
         
         if (error) throw error;
@@ -78,7 +85,7 @@ export const RegionalGroupsTab = () => {
       } else {
         const { error } = await supabase
           .from('regional_groups' as any)
-          .insert(formData);
+          .insert(submitData);
         
         if (error) throw error;
         toast.success('تم إضافة المجموعة بنجاح');
@@ -86,7 +93,7 @@ export const RegionalGroupsTab = () => {
       
       setDialogOpen(false);
       setEditingGroup(null);
-      setFormData({ name: '', name_ar: '', region: '', description: '' });
+      setFormData({ name: '', name_ar: '', region: '', description: '', selectedCityId: '' });
       loadGroups();
     } catch (error) {
       console.error('Error saving group:', error);

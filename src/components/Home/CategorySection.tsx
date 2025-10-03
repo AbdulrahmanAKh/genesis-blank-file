@@ -217,6 +217,7 @@ const CategorySection = () => {
   const [carouselApi, setCarouselApi] = useState<any>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [visibleItems, setVisibleItems] = useState(4);
+  const [slidesToScroll, setSlidesToScroll] = useState(4);
 
   const fetchData = async () => {
     try {
@@ -273,19 +274,22 @@ const CategorySection = () => {
     };
   }, [carouselApi]);
 
-  // Update visible items based on screen size
+  // Update visible items and slides to scroll based on screen size
   useEffect(() => {
-    const updateVisibleItems = () => {
+    const updateCarouselSettings = () => {
       const width = window.innerWidth;
-      if (width < 640) setVisibleItems(1);      // mobile
-      else if (width < 768) setVisibleItems(2); // sm
-      else if (width < 1024) setVisibleItems(3); // md
-      else setVisibleItems(4);                   // lg+
+      let items = 4;
+      if (width < 640) items = 1;      // mobile
+      else if (width < 768) items = 2; // sm
+      else if (width < 1024) items = 3; // md
+      
+      setVisibleItems(items);
+      setSlidesToScroll(items); // Match scroll to visible
     };
     
-    updateVisibleItems();
-    window.addEventListener('resize', updateVisibleItems);
-    return () => window.removeEventListener('resize', updateVisibleItems);
+    updateCarouselSettings();
+    window.addEventListener('resize', updateCarouselSettings);
+    return () => window.removeEventListener('resize', updateCarouselSettings);
   }, []);
 
   const getIconComponent = (iconName?: string, categoryName?: string): React.ComponentType<{ className?: string }> => {
@@ -421,7 +425,7 @@ const CategorySection = () => {
             opts={{
               align: "start",
               loop: true,
-              slidesToScroll: 1,
+              slidesToScroll: slidesToScroll,
               skipSnaps: false,
             }}
             setApi={setCarouselApi}
@@ -482,7 +486,7 @@ const CategorySection = () => {
           <div className="text-center mt-6">
             <div className="text-sm text-muted-foreground">
               <span className="font-medium">
-                عرض {currentSlide * visibleItems + 1}-{Math.min((currentSlide + 1) * visibleItems, categories.length)}
+                عرض {currentSlide + 1}-{Math.min(currentSlide + visibleItems, categories.length)}
               </span>
               {' من '}
               <span className="font-medium">{categories.length}</span>

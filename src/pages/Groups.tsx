@@ -174,7 +174,7 @@ const Groups = () => {
   };
 
   const filteredRegionGroups = (regionGroups || []).filter(group =>
-    group.group_name.toLowerCase().includes(searchTerm.toLowerCase())
+    group.group_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false
   );
 
   return (

@@ -54,6 +54,23 @@ const Services = () => {
     queryFn: fetchCategories
   });
 
+  // Fetch cities from database
+  const fetchCities = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('cities')
+      .select('*')
+      .eq('is_active', true)
+      .order('name_ar');
+    
+    if (error) throw error;
+    return data || [];
+  }, []);
+
+  const { data: citiesData = [] } = useSupabaseQuery({
+    queryKey: ['cities'],
+    queryFn: fetchCities
+  });
+
   // Build categories filter options
   const categories = [
     { value: "all", label: "جميع الخدمات" },
@@ -65,10 +82,10 @@ const Services = () => {
 
   const cities = [
     { value: "all", label: "جميع المدن" },
-    { value: "riyadh", label: "الرياض" },
-    { value: "jeddah", label: "جدة" },
-    { value: "taif", label: "الطائف" },
-    { value: "dammam", label: "الدمام" }
+    ...(citiesData || []).map(city => ({
+      value: city.id,
+      label: city.name_ar || city.name
+    }))
   ];
 
   // Filter services based on search and filters

@@ -92,7 +92,7 @@ export const ActivityLogsTab = () => {
                 {logs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="font-medium">
-                      {log.profiles?.full_name || 'غير معروف'}
+                      {log.admin?.full_name || 'غير معروف'}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

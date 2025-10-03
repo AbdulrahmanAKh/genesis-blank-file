@@ -35,7 +35,7 @@ export const activityLogService = {
         .from('admin_activity_logs')
         .select(`
           *,
-          profiles!admin_activity_logs_admin_id_fkey(full_name)
+          admin:profiles!admin_id(full_name)
         `)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -66,7 +66,7 @@ export const activityLogService = {
         .from('admin_activity_logs')
         .select(`
           *,
-          profiles!admin_activity_logs_admin_id_fkey(full_name)
+          admin:profiles!admin_id(full_name)
         `)
         .eq('entity_type', entityType)
         .eq('entity_id', entityId)

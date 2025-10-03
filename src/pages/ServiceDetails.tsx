@@ -93,11 +93,8 @@ const ServiceDetails = () => {
         .from('services')
         .select(`
           *,
-          profiles!services_provider_id_fkey (
-            full_name,
-            phone,
-            avatar_url
-          )
+          provider:profiles!provider_id(full_name, avatar_url, phone),
+          category:service_categories(name, name_ar)
         `)
         .eq('id', id)
         .single();

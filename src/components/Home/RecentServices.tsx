@@ -27,8 +27,8 @@ const RecentServices = () => {
           .from('services')
           .select(`
             *,
-            categories(name, name_ar),
-            profiles(full_name)
+            categories!services_category_id_fkey(name, name_ar),
+            profiles!provider_id(full_name)
           `)
           .eq('status', 'approved')
           .order('created_at', { ascending: false })

@@ -214,6 +214,9 @@ const CategorySection = () => {
   const [statistics, setStatistics] = useState<Statistic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [carouselApi, setCarouselApi] = useState<any>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [visibleItems, setVisibleItems] = useState(4);
 
   const fetchData = async () => {
     try {
@@ -252,6 +255,37 @@ const CategorySection = () => {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // Track carousel API and current slide
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    const onSelect = () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    };
+
+    carouselApi.on('select', onSelect);
+    onSelect();
+
+    return () => {
+      carouselApi.off('select', onSelect);
+    };
+  }, [carouselApi]);
+
+  // Update visible items based on screen size
+  useEffect(() => {
+    const updateVisibleItems = () => {
+      const width = window.innerWidth;
+      if (width < 640) setVisibleItems(1);      // mobile
+      else if (width < 768) setVisibleItems(2); // sm
+      else if (width < 1024) setVisibleItems(3); // md
+      else setVisibleItems(4);                   // lg+
+    };
+    
+    updateVisibleItems();
+    window.addEventListener('resize', updateVisibleItems);
+    return () => window.removeEventListener('resize', updateVisibleItems);
   }, []);
 
   const getIconComponent = (iconName?: string, categoryName?: string): React.ComponentType<{ className?: string }> => {
@@ -390,6 +424,7 @@ const CategorySection = () => {
               slidesToScroll: 1,
               skipSnaps: false,
             }}
+            setApi={setCarouselApi}
             className="w-full"
           >
             <CarouselContent>
@@ -442,6 +477,18 @@ const CategorySection = () => {
             <CarouselPrevious className="left-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-background" />
             <CarouselNext className="right-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-background" />
           </Carousel>
+
+          {/* Dynamic Counter */}
+          <div className="text-center mt-6">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">
+                عرض {currentSlide * visibleItems + 1}-{Math.min((currentSlide + 1) * visibleItems, categories.length)}
+              </span>
+              {' من '}
+              <span className="font-medium">{categories.length}</span>
+              {' تصنيف'}
+            </div>
+          </div>
         </div>
 
         {/* View All Button */}

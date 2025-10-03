@@ -416,7 +416,7 @@ const CategorySection = () => {
                   const IconComponent = getIconComponent(category.icon_name, category.name_ar);
                   
                   return (
-                    <CarouselItem key={category.id}>
+                    <CarouselItem key={category.id} className="md:basis-1/2 lg:basis-1/4">
                       <Link to={`/explore?category=${category.id}`}>
                         <Card className="group overflow-hidden hover:shadow-xl smooth-transition">
                           <div className="relative h-64">

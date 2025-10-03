@@ -359,7 +359,7 @@ const CategorySection = () => {
         </div>
 
         {/* Categories Grid */}
-        <div className="flex overflow-x-auto scrollbar-hide gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-12">
           {categories.map((category) => {
             const IconComponent = getIconComponent(category.icon_name, category.name_ar);
             const colorClass = getCategoryColor(category.name_ar);
@@ -416,7 +416,7 @@ const CategorySection = () => {
                   const IconComponent = getIconComponent(category.icon_name, category.name_ar);
                   
                   return (
-                    <CarouselItem key={category.id} style={{ minWidth: '250px' }}>
+                    <CarouselItem key={category.id} className="md:basis-1/2 lg:basis-1/4">
                       <Link to={`/explore?category=${category.id}`}>
                         <Card className="group overflow-hidden hover:shadow-xl smooth-transition">
                           <div className="relative h-64">

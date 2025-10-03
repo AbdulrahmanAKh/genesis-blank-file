@@ -218,6 +218,7 @@ const CategorySection = () => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slideCount, setSlideCount] = useState(0);
+  const [visibleItems, setVisibleItems] = useState(4);
 
   const fetchData = async () => {
     try {
@@ -268,6 +269,20 @@ const CategorySection = () => {
       setCurrentSlide(carouselApi.selectedScrollSnap());
     });
   }, [carouselApi]);
+
+  useEffect(() => {
+    const updateVisibleItems = () => {
+      const width = window.innerWidth;
+      if (width < 640) setVisibleItems(1);      // mobile
+      else if (width < 768) setVisibleItems(2); // sm
+      else if (width < 1024) setVisibleItems(3); // md
+      else setVisibleItems(4);                   // lg+
+    };
+    
+    updateVisibleItems();
+    window.addEventListener('resize', updateVisibleItems);
+    return () => window.removeEventListener('resize', updateVisibleItems);
+  }, []);
 
   const getIconComponent = (iconName?: string, categoryName?: string): React.ComponentType<{ className?: string }> => {
     // First check if custom icon name exists in iconMap
@@ -402,7 +417,7 @@ const CategorySection = () => {
             opts={{
               align: "start",
               loop: true,
-              slidesToScroll: 4,
+              slidesToScroll: 1,
               skipSnaps: false,
             }}
             setApi={setCarouselApi}
@@ -460,7 +475,7 @@ const CategorySection = () => {
           </Carousel>
           
           {/* Carousel Indicators */}
-          <div className="flex items-center justify-center gap-2 mt-6">
+          <div className="flex items-center justify-center gap-4 mt-6">
             <div className="flex gap-2">
               {Array.from({ length: slideCount }).map((_, index) => (
                 <button
@@ -475,9 +490,14 @@ const CategorySection = () => {
                 />
               ))}
             </div>
-            <span className="text-sm text-muted-foreground mr-3">
-              {currentSlide + 1} / {slideCount}
-            </span>
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">
+                عرض {currentSlide + 1}-{Math.min(currentSlide + visibleItems, categories.length)}
+              </span>
+              {' من '}
+              <span className="font-medium">{categories.length}</span>
+              {' تصنيف'}
+            </div>
           </div>
         </div>
 

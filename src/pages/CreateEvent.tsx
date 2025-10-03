@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { supabaseServices } from "@/services/supabaseServices";
+import { MapLocationPicker } from "@/components/Maps/MapLocationPicker";
 
 const formSchema = z.object({
   title: z.string().min(3, "العنوان يجب أن يكون 3 أحرف على الأقل"),
@@ -72,6 +73,8 @@ const CreateEvent = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [selectedCoordinates, setSelectedCoordinates] = useState<{ lat: number; lng: number } | null>(null);
 
   // Load categories from Supabase
   const { data: categories = [] } = useSupabaseQuery({
@@ -147,6 +150,8 @@ const CreateEvent = () => {
         description_ar: data.descriptionAr,
         location: data.location,
         location_ar: data.locationAr,
+        latitude: selectedCoordinates?.lat || null,
+        longitude: selectedCoordinates?.lng || null,
         category_id: data.categoryId,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
@@ -354,6 +359,29 @@ const CreateEvent = () => {
                         </FormItem>
                       )}
                     />
+                  </div>
+
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setShowMapPicker(!showMapPicker)}
+                    >
+                      <MapPin className="w-4 h-4 ml-2" />
+                      {showMapPicker ? 'إخفاء الخريطة' : 'تحديد الموقع من الخريطة'}
+                    </Button>
+                    {showMapPicker && (
+                      <div className="mt-4">
+                        <MapLocationPicker
+                          onLocationSelect={(location) => {
+                            setSelectedCoordinates({ lat: location.lat, lng: location.lng });
+                            form.setValue('locationAr', location.address);
+                            form.setValue('location', location.address);
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

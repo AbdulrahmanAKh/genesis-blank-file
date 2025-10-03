@@ -10,12 +10,14 @@ import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
 import { eventsService, categoriesService } from "@/services/supabaseServices";
 import { useLanguageContext } from "@/contexts/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Explore = () => {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCity, setSelectedCity] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -26,16 +28,19 @@ const Explore = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [eventsResponse, categoriesResponse] = await Promise.all([
+        const [eventsResponse, categoriesResponse, citiesResponse] = await Promise.all([
           eventsService.getAll(),
-          categoriesService.getAll()
+          categoriesService.getAll(),
+          supabase.from('cities').select('*').eq('is_active', true).order('name_ar')
         ]);
 
         if (eventsResponse.error) throw eventsResponse.error;
         if (categoriesResponse.error) throw categoriesResponse.error;
+        if (citiesResponse.error) throw citiesResponse.error;
 
         setEvents(eventsResponse.data || []);
         setCategories(categoriesResponse.data || []);
+        setCities(citiesResponse.data || []);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -104,16 +109,17 @@ const Explore = () => {
               />
             </div>
 
-            <Select>
+            <Select value={selectedCity} onValueChange={setSelectedCity}>
               <SelectTrigger>
                 <SelectValue placeholder="المدينة" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">جميع المدن</SelectItem>
-                <SelectItem value="riyadh">الرياض</SelectItem>
-                <SelectItem value="jeddah">جدة</SelectItem>
-                <SelectItem value="taif">الطائف</SelectItem>
-                <SelectItem value="qassim">القصيم</SelectItem>
+                {cities.map((city) => (
+                  <SelectItem key={city.id} value={city.name_ar.toLowerCase()}>
+                    {city.name_ar}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 

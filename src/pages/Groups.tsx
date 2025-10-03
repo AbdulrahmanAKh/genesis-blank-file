@@ -78,8 +78,23 @@ const Groups = () => {
     }
 
     try {
-      // Add user to group (this would need a group_members table)
-      // For now, just increment the current_members count
+      // Check if user is already a member
+      const { data: existingMember } = await supabase
+        .from('group_members')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingMember) {
+        toast({
+          title: 'تنبيه',
+          description: 'أنت عضو بالفعل في هذه المجموعة',
+          variant: 'default'
+        });
+        return;
+      }
+
       // Get current group data
       const { data: groupData, error: fetchError } = await supabase
         .from('event_groups')
@@ -89,6 +104,28 @@ const Groups = () => {
 
       if (fetchError) throw fetchError;
 
+      // Check if group is full
+      if (groupData.current_members >= groupData.max_members) {
+        toast({
+          title: 'خطأ',
+          description: 'المجموعة ممتلئة',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Add user to group_members
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: groupId,
+          user_id: user.id,
+          role: 'member'
+        });
+
+      if (memberError) throw memberError;
+
+      // Increment current_members count
       const { error } = await supabase
         .from('event_groups')
         .update({ 

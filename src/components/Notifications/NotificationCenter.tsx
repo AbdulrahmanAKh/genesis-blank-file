@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Bell, Mail, MessageSquare, Settings, Check, X, Volume2, VolumeX } from 'lucide-react';
+import { Bell, Mail, MessageSquare, Settings, Check, X, Volume2, VolumeX, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { useAuth } from '@/contexts/AuthContext';
@@ -93,7 +93,8 @@ export const NotificationCenter = () => {
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .eq('read', false);
 
       if (error) throw error;
       refetch();
@@ -106,6 +107,29 @@ export const NotificationCenter = () => {
       toast({
         title: "خطأ",
         description: "حدث خطأ أثناء تحديث الإشعارات",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId);
+
+      if (error) throw error;
+      refetch();
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف الإشعار بنجاح"
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء حذف الإشعار",
         variant: "destructive"
       });
     }
@@ -333,7 +357,10 @@ export const NotificationCenter = () => {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => unreadCount > 0 && markAllAsRead()}
+          >
             <Bell className="h-5 w-5" />
             الإشعارات
             {unreadCount > 0 && (
@@ -346,11 +373,6 @@ export const NotificationCenter = () => {
             <Button variant="ghost" size="sm" onClick={() => setShowPreferences(true)}>
               <Settings className="h-4 w-4" />
             </Button>
-            {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-                تحديد الكل كمقروء
-              </Button>
-            )}
           </div>
         </div>
         <CardDescription>
@@ -392,8 +414,19 @@ export const NotificationCenter = () => {
                     </div>
                   </div>
                   <div className="flex gap-1 ml-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNotification(notification.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                    </Button>
                     {!notification.read && (
-                      <div className="w-2 h-2 bg-primary rounded-full" />
+                      <div className="w-2 h-2 bg-primary rounded-full mt-2" />
                     )}
                   </div>
                 </div>

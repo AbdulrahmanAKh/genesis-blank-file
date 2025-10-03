@@ -27,7 +27,7 @@ const RecentServices = () => {
           .from('services')
           .select(`
             *,
-            service_categories(name, name_ar),
+            categories(name, name_ar),
             profiles(full_name)
           `)
           .eq('status', 'approved')
@@ -173,10 +173,10 @@ const RecentServices = () => {
                         <p className="text-sm text-muted-foreground">لا توجد صورة</p>
                       </div>
                     </div>
-                    {service.service_categories && (
+                    {service.categories && (
                       <div className="absolute top-4 right-4">
                         <Badge variant="secondary" className="bg-white/90">
-                          {service.service_categories.name_ar || service.service_categories.name}
+                          {service.categories.name_ar || service.categories.name}
                         </Badge>
                       </div>
                     )}

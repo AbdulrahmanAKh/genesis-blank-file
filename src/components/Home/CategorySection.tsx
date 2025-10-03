@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import type { CarouselApi } from '@/components/ui/carousel';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -215,10 +214,6 @@ const CategorySection = () => {
   const [statistics, setStatistics] = useState<Statistic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [slideCount, setSlideCount] = useState(0);
-  const [visibleItems, setVisibleItems] = useState(4);
 
   const fetchData = async () => {
     try {
@@ -257,31 +252,6 @@ const CategorySection = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (!carouselApi) return;
-
-    setSlideCount(carouselApi.scrollSnapList().length);
-    setCurrentSlide(carouselApi.selectedScrollSnap());
-
-    carouselApi.on("select", () => {
-      setCurrentSlide(carouselApi.selectedScrollSnap());
-    });
-  }, [carouselApi]);
-
-  useEffect(() => {
-    const updateVisibleItems = () => {
-      const width = window.innerWidth;
-      if (width < 640) setVisibleItems(1);      // mobile
-      else if (width < 768) setVisibleItems(2); // sm
-      else if (width < 1024) setVisibleItems(3); // md
-      else setVisibleItems(4);                   // lg+
-    };
-    
-    updateVisibleItems();
-    window.addEventListener('resize', updateVisibleItems);
-    return () => window.removeEventListener('resize', updateVisibleItems);
   }, []);
 
   const getIconComponent = (iconName?: string, categoryName?: string): React.ComponentType<{ className?: string }> => {
@@ -420,7 +390,6 @@ const CategorySection = () => {
               slidesToScroll: 1,
               skipSnaps: false,
             }}
-            setApi={setCarouselApi}
             className="w-full"
           >
             <CarouselContent>
@@ -473,32 +442,6 @@ const CategorySection = () => {
             <CarouselPrevious className="left-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-background" />
             <CarouselNext className="right-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-background" />
           </Carousel>
-          
-          {/* Carousel Indicators */}
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <div className="flex gap-2">
-              {Array.from({ length: slideCount }).map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => carouselApi?.scrollTo(index)}
-                  className={`h-2 rounded-full transition-all ${
-                    index === currentSlide 
-                      ? 'w-8 bg-primary' 
-                      : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                  }`}
-                  aria-label={`الانتقال إلى الصفحة ${index + 1}`}
-                />
-              ))}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium">
-                عرض {currentSlide + 1}-{Math.min(currentSlide + visibleItems, categories.length)}
-              </span>
-              {' من '}
-              <span className="font-medium">{categories.length}</span>
-              {' تصنيف'}
-            </div>
-          </div>
         </div>
 
         {/* View All Button */}

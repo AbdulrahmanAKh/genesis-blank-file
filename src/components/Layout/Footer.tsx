@@ -66,7 +66,7 @@ const Footer = () => {
 
         <div className="border-t mt-8 pt-8 text-center">
           <p className="text-sm text-muted-foreground">
-            © 2024 أدرينا. جميع الحقوق محفوظة.
+            © 2025 أدرينا. جميع الحقوق محفوظة.
           </p>
         </div>
       </div>

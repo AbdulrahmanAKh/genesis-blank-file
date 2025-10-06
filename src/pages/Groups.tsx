@@ -64,16 +64,56 @@ const Groups = () => {
   });
 
   const { data: eventGroups = [], isLoading: eventLoading, refetch: refetchEvent } = useSupabaseQuery({
-    queryKey: ['event-groups', user?.id],
+    queryKey: ['event-groups', user?.id, userRole],
     queryFn: useCallback(async () => {
-      const { data, error } = await supabase
+      if (!user?.id) return [];
+
+      // Admins see all event groups
+      if (userRole === 'admin') {
+        const { data, error } = await supabase
+          .from('event_groups')
+          .select('*')
+          .neq('group_type', 'region')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+      }
+
+      // Get groups where user is organizer
+      const { data: organizerGroups, error: orgError } = await supabase
         .from('event_groups')
-        .select('*')
+        .select('*, events!inner(organizer_id)')
         .neq('group_type', 'region')
+        .eq('events.organizer_id', user.id)
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    }, [user?.id]),
+
+      if (orgError) throw orgError;
+
+      // Get groups where user is a registered attendee
+      const { data: attendeeBookings } = await supabase
+        .from('bookings')
+        .select('event_id')
+        .eq('user_id', user.id)
+        .eq('status', 'confirmed');
+
+      const attendeeEventIds = attendeeBookings?.map(b => b.event_id) || [];
+      
+      const { data: attendeeGroups } = attendeeEventIds.length > 0 
+        ? await supabase
+            .from('event_groups')
+            .select('*')
+            .in('event_id', attendeeEventIds)
+            .neq('group_type', 'region')
+        : { data: [] };
+
+      // Combine and deduplicate
+      const allGroups = [...(organizerGroups || []), ...(attendeeGroups || [])];
+      const uniqueGroups = allGroups.filter((group, index, self) => 
+        index === self.findIndex(g => g.id === group.id)
+      );
+
+      return uniqueGroups;
+    }, [user?.id, userRole]),
     enabled: !!user?.id
   });
 
@@ -136,7 +176,7 @@ const Groups = () => {
       // Get current group data
       const { data: groupData } = await supabase
         .from('event_groups')
-        .select('current_members, max_members')
+        .select('group_name, current_members, max_members')
         .eq('id', groupId)
         .maybeSingle();
 
@@ -170,6 +210,15 @@ const Groups = () => {
           })
           .eq('id', groupId);
       }
+
+      // Send notification to user
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        type: 'group_joined',
+        title: 'انضمام لمجموعة',
+        message: `لقد تم انضمامك الى قروب "${groupData?.group_name}" بنجاح!`,
+        data: { group_id: groupId }
+      });
 
       toast({
         title: 'تم بنجاح!',
@@ -222,20 +271,14 @@ const Groups = () => {
           </TabsList>
 
           <TabsContent value="region" className="space-y-6">
-            <div className="flex space-x-4">
-              <div className="relative flex-1">
-                <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="البحث عن قروب منطقة..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pr-10"
-                />
-              </div>
-              <Button variant="outline">
-                <Filter className="w-4 h-4 ml-2" />
-                فلترة
-              </Button>
+            <div className="relative">
+              <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="البحث عن قروب منطقة..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+              />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -317,10 +360,21 @@ const Groups = () => {
           </TabsContent>
 
           <TabsContent value="events" className="space-y-6">
+            <div className="relative mb-4">
+              <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="البحث عن قروب فعالية..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+              />
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <div className="space-y-4">
-                  {(eventGroups || []).map((group) => (
+                  {(eventGroups || [])
+                    .filter(group => group.group_name?.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map((group) => (
                     <Card key={group.id}>
                       <CardHeader>
                         <div className="flex justify-between items-start">

@@ -145,7 +145,7 @@ export const GroupMemberManagement: React.FC<GroupMemberManagementProps> = ({
     }
   );
 
-  const isUserMember = members.some(member => member.user_id === user?.id);
+  const isUserMember = members?.some(member => member.user_id === user?.id) ?? false;
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

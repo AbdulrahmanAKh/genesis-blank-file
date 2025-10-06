@@ -169,13 +169,26 @@ const CreateEvent = () => {
 
       // Auto-create group for the event
       if (eventData) {
-        await supabase.from('event_groups').insert({
-          event_id: eventData.id,
-          group_name: `${data.titleAr} - المجموعة الرسمية`,
-          group_type: 'whatsapp',
-          created_by: user.id,
-          max_members: data.maxAttendees
-        });
+        const { data: groupData, error: groupError } = await supabase
+          .from('event_groups')
+          .insert({
+            event_id: eventData.id,
+            group_name: `${data.titleAr} - المجموعة الرسمية`,
+            group_type: 'whatsapp',
+            created_by: user.id,
+            max_members: data.maxAttendees
+          })
+          .select()
+          .single();
+
+        // Ensure organizer is added as admin to the group
+        if (groupData && !groupError) {
+          await supabase.from('group_members').insert({
+            group_id: groupData.id,
+            user_id: user.id,
+            role: 'owner'
+          });
+        }
       }
 
       toast({

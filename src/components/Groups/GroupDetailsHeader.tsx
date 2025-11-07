@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Trophy, Medal, Award, Users, Settings, UserPlus } from 'lucide-react';
+import { Trophy, Medal, Award, Users, Settings, UserPlus, Crown } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguageContext } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,6 +70,7 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
 
   const canManageGroup = memberRole === 'owner' || memberRole === 'admin';
 
@@ -97,7 +99,6 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
 
       const topUsers = Object.entries(postCounts)
         .sort(([, a]: any, [, b]: any) => b - a)
-        .slice(0, 5)
         .map(([userId, count]: any) => ({ user_id: userId, posts_count: count }));
 
       const leaderboardData = await Promise.all(
@@ -161,11 +162,13 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
     }
   };
 
-  const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Trophy className="w-5 h-5 text-yellow-500" />;
-    if (rank === 2) return <Medal className="w-5 h-5 text-gray-400" />;
-    if (rank === 3) return <Award className="w-5 h-5 text-amber-600" />;
-    return <span className="text-sm font-bold text-muted-foreground">#{rank}</span>;
+  const getRankCircle = (rank: number) => {
+    const colors = {
+      1: 'from-yellow-400 via-yellow-500 to-yellow-600',
+      2: 'from-gray-300 via-gray-400 to-gray-500',
+      3: 'from-amber-500 via-amber-600 to-amber-700'
+    };
+    return colors[rank as keyof typeof colors] || 'from-muted via-muted-foreground to-muted';
   };
 
   const handleJoinGroup = async () => {
@@ -266,7 +269,7 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
             
             {isMember && !canManageGroup && onLeaveGroup && (
               <Button
-                variant="outline"
+                variant="destructive"
                 onClick={onLeaveGroup}
                 className="gap-2"
               >
@@ -311,53 +314,137 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
         )}
       </div>
 
-      {/* Leaderboard Section */}
+      {/* Leaderboard Section - Top 3 */}
       <div className="px-6 pt-6 pb-4">
-        <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-          <Trophy className="w-5 h-5 text-primary" />
-          {isRTL ? 'لوحة المتصدرين' : 'Leaderboard'}
-        </h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-primary" />
+            {isRTL ? 'لوحة المتصدرين' : 'Top Leaders'}
+          </h2>
+          {leaders.length > 3 && (
+            <Button variant="outline" size="sm" onClick={() => setShowFullLeaderboard(true)}>
+              {isRTL ? 'عرض الكل' : 'View All'}
+            </Button>
+          )}
+        </div>
 
-          {isLoadingLeaders ? (
-            <div className="text-center py-6 text-muted-foreground">
-              {isRTL ? 'جاري التحميل...' : 'Loading...'}
-            </div>
-          ) : leaders.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              {isRTL ? 'لا يوجد نشاط بعد' : 'No activity yet'}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {leaders.map((leader) => (
-                <div
-                  key={leader.user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center justify-center w-8">
-                    {getRankIcon(leader.rank)}
+        {isLoadingLeaders ? (
+          <div className="text-center py-6 text-muted-foreground">
+            {isRTL ? 'جاري التحميل...' : 'Loading...'}
+          </div>
+        ) : leaders.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            {isRTL ? 'لا يوجد نشاط بعد' : 'No activity yet'}
+          </div>
+        ) : (
+          <div className="flex items-end justify-center gap-6 py-4">
+            {/* Second Place */}
+            {leaders[1] && (
+              <div className="flex flex-col items-center space-y-3 pb-4">
+                <div className={`relative w-20 h-20 rounded-full bg-gradient-to-br ${getRankCircle(2)} p-1 shadow-lg`}>
+                  <div className="w-full h-full rounded-full bg-background p-1">
+                    <Avatar className="w-full h-full">
+                      <AvatarImage src={leaders[1].avatar_url} />
+                      <AvatarFallback>{leaders[1].full_name.charAt(0)}</AvatarFallback>
+                    </Avatar>
                   </div>
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={leader.avatar_url} />
-                    <AvatarFallback>
-                      {leader.full_name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{leader.full_name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {leader.posts_count} {isRTL ? 'منشور' : 'posts'}
+                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-br from-gray-300 to-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-md">
+                    2
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-sm truncate max-w-[100px]">{leaders[1].full_name}</div>
+                  <div className="text-xs text-muted-foreground">{leaders[1].posts_count} {isRTL ? 'منشور' : 'posts'}</div>
+                </div>
+              </div>
+            )}
+
+            {/* First Place */}
+            {leaders[0] && (
+              <div className="flex flex-col items-center space-y-3">
+                <div className="relative">
+                  <Crown className="absolute -top-8 left-1/2 transform -translate-x-1/2 w-10 h-10 text-yellow-500 animate-pulse" />
+                  <div className={`relative w-24 h-24 rounded-full bg-gradient-to-br ${getRankCircle(1)} p-1 shadow-2xl`}>
+                    <div className="w-full h-full rounded-full bg-background p-1">
+                      <Avatar className="w-full h-full">
+                        <AvatarImage src={leaders[0].avatar_url} />
+                        <AvatarFallback>{leaders[0].full_name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full w-9 h-9 flex items-center justify-center text-base font-bold shadow-lg">
+                      1
                     </div>
                   </div>
-                  {leader.rank <= 3 && (
-                    <Badge variant={leader.rank === 1 ? 'default' : 'secondary'} className="text-xs">
-                      {isRTL ? 'نشط' : 'Active'}
-                    </Badge>
-                  )}
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="text-center">
+                  <div className="font-bold text-base truncate max-w-[120px]">{leaders[0].full_name}</div>
+                  <div className="text-sm text-muted-foreground">{leaders[0].posts_count} {isRTL ? 'منشور' : 'posts'}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Third Place */}
+            {leaders[2] && (
+              <div className="flex flex-col items-center space-y-3 pb-4">
+                <div className={`relative w-20 h-20 rounded-full bg-gradient-to-br ${getRankCircle(3)} p-1 shadow-lg`}>
+                  <div className="w-full h-full rounded-full bg-background p-1">
+                    <Avatar className="w-full h-full">
+                      <AvatarImage src={leaders[2].avatar_url} />
+                      <AvatarFallback>{leaders[2].full_name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-br from-amber-500 to-amber-700 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-md">
+                    3
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-sm truncate max-w-[100px]">{leaders[2].full_name}</div>
+                  <div className="text-xs text-muted-foreground">{leaders[2].posts_count} {isRTL ? 'منشور' : 'posts'}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Full Leaderboard Dialog */}
+      <Dialog open={showFullLeaderboard} onOpenChange={setShowFullLeaderboard}>
+        <DialogContent className="sm:max-w-[500px]" dir={isRTL ? 'rtl' : 'ltr'}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary" />
+              {isRTL ? 'لوحة المتصدرين' : 'Full Leaderboard'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {leaders.map((leader) => (
+              <div
+                key={leader.user_id}
+                className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-bold text-sm">
+                  {leader.rank}
+                </div>
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={leader.avatar_url} />
+                  <AvatarFallback>{leader.full_name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">{leader.full_name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {leader.posts_count} {isRTL ? 'منشور' : 'posts'}
+                  </div>
+                </div>
+                {leader.rank <= 3 && (
+                  <Badge variant={leader.rank === 1 ? 'default' : 'secondary'} className="text-xs">
+                    {isRTL ? `المركز ${leader.rank}` : `#${leader.rank}`}
+                  </Badge>
+                )}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Members Section */}
       <div className="px-6 pb-6">

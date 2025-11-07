@@ -27,6 +27,7 @@ interface GroupSettingsDialogProps {
   onClose: () => void;
   visibility: string;
   requiresApproval: boolean;
+  onSettingsSaved?: () => void;
 }
 
 export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
@@ -34,7 +35,8 @@ export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
   open,
   onClose,
   visibility: initialVisibility,
-  requiresApproval: initialRequiresApproval
+  requiresApproval: initialRequiresApproval,
+  onSettingsSaved
 }) => {
   const { language } = useLanguageContext();
   const { user } = useAuth();
@@ -102,6 +104,7 @@ export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
         description: isRTL ? 'تم حفظ الإعدادات بنجاح' : 'Settings saved successfully'
       });
 
+      onSettingsSaved?.();
       onClose();
     } catch (error) {
       console.error('Error saving settings:', error);

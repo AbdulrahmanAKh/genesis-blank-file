@@ -260,6 +260,7 @@ const GroupDetails = () => {
               visibility={group.visibility}
               requiresApproval={group.requires_approval}
               onMembershipChange={handleMembershipChange}
+              onLeaveGroup={handleLeaveGroup}
             />
           </div>
 

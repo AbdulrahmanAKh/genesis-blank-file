@@ -42,6 +42,7 @@ interface GroupDetailsHeaderProps {
   visibility?: string;
   requiresApproval?: boolean;
   onMembershipChange?: () => void;
+  onLeaveGroup?: () => void;
 }
 
 export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
@@ -55,7 +56,8 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
   memberRole,
   visibility = 'public',
   requiresApproval = false,
-  onMembershipChange
+  onMembershipChange,
+  onLeaveGroup
 }) => {
   const { language } = useLanguageContext();
   const { user } = useAuth();
@@ -230,6 +232,7 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
         onClose={() => setShowSettings(false)}
         visibility={visibility}
         requiresApproval={requiresApproval}
+        onSettingsSaved={onMembershipChange}
       />
       {/* Group Thumbnail */}
       <div className="h-48 md:h-64 w-full overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20">
@@ -258,6 +261,16 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
                   : requiresApproval
                   ? (isRTL ? 'طلب الانضمام' : 'Request to Join')
                   : (isRTL ? 'انضم الآن' : 'Join Group')}
+              </Button>
+            )}
+            
+            {isMember && !canManageGroup && onLeaveGroup && (
+              <Button
+                variant="outline"
+                onClick={onLeaveGroup}
+                className="gap-2"
+              >
+                {isRTL ? 'مغادرة المجموعة' : 'Leave Group'}
               </Button>
             )}
             

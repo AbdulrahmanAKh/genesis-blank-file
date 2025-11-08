@@ -436,33 +436,46 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
               {isRTL ? 'لوحة المتصدرين' : 'Full Leaderboard'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
-            {leaders.map((leader) => (
-              <div
-                key={leader.user_id}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-bold text-sm">
-                  {leader.rank}
-                </div>
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={leader.avatar_url} />
-                  <AvatarFallback>{leader.full_name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{leader.full_name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {leader.posts_count} {isRTL ? 'منشور' : 'posts'}
+          <Tabs defaultValue="weekly" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="weekly">{isRTL ? 'أسبوعي' : 'Weekly'}</TabsTrigger>
+              <TabsTrigger value="monthly">{isRTL ? 'شهري' : 'Monthly'}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="weekly">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {leaders.map((leader) => (
+                  <div
+                    key={leader.user_id}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-bold text-sm">
+                      {leader.rank}
+                    </div>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={leader.avatar_url} />
+                      <AvatarFallback>{leader.full_name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">{leader.full_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {leader.posts_count} {isRTL ? 'منشور' : 'posts'}
+                      </div>
+                    </div>
+                    {leader.rank <= 3 && (
+                      <Badge variant={leader.rank === 1 ? 'default' : 'secondary'} className="text-xs">
+                        {isRTL ? `المركز ${leader.rank}` : `#${leader.rank}`}
+                      </Badge>
+                    )}
                   </div>
-                </div>
-                {leader.rank <= 3 && (
-                  <Badge variant={leader.rank === 1 ? 'default' : 'secondary'} className="text-xs">
-                    {isRTL ? `المركز ${leader.rank}` : `#${leader.rank}`}
-                  </Badge>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
+            </TabsContent>
+            <TabsContent value="monthly">
+              <div className="text-center py-12 text-muted-foreground">
+                {isRTL ? 'قريباً' : 'Coming soon'}
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 

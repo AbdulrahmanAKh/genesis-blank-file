@@ -13,14 +13,20 @@ import { Search, Users, MapPin, Filter, Plus, TrendingUp } from 'lucide-react';
 import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { CreateGroupDialog } from '@/components/Groups/CreateGroupDialog';
-import { GroupsFilterDialog } from '@/components/Groups/GroupsFilterDialog';
+import { AdvancedSearchFilters, GroupFilters } from '@/components/Groups/AdvancedSearchFilters';
 
 export default function GroupsOverview() {
   const { user } = useAuth();
   const { language } = useLanguageContext();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<GroupFilters>({
+    interests: [],
+    cities: [],
+    memberRange: [0, 500],
+    ageRange: [18, 65],
+    gender: []
+  });
   const isRTL = language === 'ar';
 
   // Organizer Groups - groups created by user

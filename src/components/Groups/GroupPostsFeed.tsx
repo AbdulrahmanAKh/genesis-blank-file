@@ -5,13 +5,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Heart, MessageCircle, Image as ImageIcon, Video } from 'lucide-react';
+import { Heart, MessageCircle, Image as ImageIcon, Video, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { CreatePostDialog } from './CreatePostDialog';
-import { PostDetailsDialog } from './PostDetailsDialog';
+import { EnhancedPostDetailsDialog } from './EnhancedPostDetailsDialog';
+import { PollPost } from './PollPost';
+import { ImageViewerDialog } from './ImageViewerDialog';
 
 interface Post {
   id: string;
@@ -41,6 +43,9 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('all');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [imageCaption, setImageCaption] = useState('');
   const isRTL = language === 'ar';
 
   useEffect(() => {
@@ -145,9 +150,9 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId }) => {
 
   const filterPosts = (posts: Post[]) => {
     if (selectedTab === 'all') return posts;
-    if (selectedTab === 'text') return posts.filter(p => !p.media_urls || (Array.isArray(p.media_urls) && p.media_urls.length === 0));
-    if (selectedTab === 'media') return posts.filter(p => p.media_urls && Array.isArray(p.media_urls) && p.media_urls.length > 0);
-    if (selectedTab === 'polls') return []; // TODO: Implement polls feature
+    if (selectedTab === 'text') return posts.filter((p: any) => p.post_type === 'text' || !p.post_type);
+    if (selectedTab === 'media') return posts.filter((p: any) => p.post_type === 'media');
+    if (selectedTab === 'polls') return posts.filter((p: any) => p.post_type === 'poll');
     return posts;
   };
 
@@ -231,10 +236,21 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId }) => {
                           className={`w-full object-cover cursor-pointer hover:opacity-95 transition-opacity ${
                             post.media_urls!.length === 1 ? 'max-h-[500px]' : 'h-64'
                           }`}
-                          onClick={() => window.open(url, '_blank')}
+                          onClick={() => {
+                            setSelectedImages(post.media_urls!);
+                            setSelectedImageIndex(idx);
+                            setImageCaption(post.content || '');
+                          }}
                         />
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Poll */}
+                {(post as any).post_type === 'poll' && (
+                  <div className="px-4 pb-3">
+                    <PollPost postId={post.id} onVote={loadPosts} />
                   </div>
                 )}
 
@@ -279,11 +295,21 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId }) => {
       </div>
 
       {selectedPost && (
-        <PostDetailsDialog
+        <EnhancedPostDetailsDialog
           post={selectedPost}
           open={!!selectedPost}
           onClose={() => setSelectedPost(null)}
           onUpdate={loadPosts}
+        />
+      )}
+
+      {selectedImages.length > 0 && (
+        <ImageViewerDialog
+          images={selectedImages}
+          currentIndex={selectedImageIndex}
+          open={selectedImages.length > 0}
+          onClose={() => setSelectedImages([])}
+          caption={imageCaption}
         />
       )}
     </div>

@@ -86,38 +86,86 @@ export const CreatePostDialog: React.FC<CreatePostDialogProps> = ({ groupId, onP
 
   const handleSubmit = async () => {
     if (!user || !canPost) return;
+    
+    // Validate based on post type
+    if (postType === 'text' && !content.trim()) {
+      toast({
+        title: isRTL ? 'خطأ' : 'Error',
+        description: isRTL ? 'يرجى كتابة محتوى المنشور' : 'Please enter post content',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    if (postType === 'media' && mediaUrls.filter(url => url.trim()).length === 0) {
+      toast({
+        title: isRTL ? 'خطأ' : 'Error',
+        description: isRTL ? 'يرجى إضافة صورة أو فيديو واحد على الأقل' : 'Please add at least one image or video',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    if (postType === 'poll') {
+      if (!pollQuestion.trim()) {
+        toast({
+          title: isRTL ? 'خطأ' : 'Error',
+          description: isRTL ? 'يرجى كتابة سؤال الاستطلاع' : 'Please enter poll question',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      const validOptions = pollOptions.filter(opt => opt.trim());
+      if (validOptions.length < 2) {
+        toast({
+          title: isRTL ? 'خطأ' : 'Error',
+          description: isRTL ? 'يرجى إضافة خيارين على الأقل' : 'Please add at least 2 options',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
 
-    if (postType === 'text' && !content.trim()) return;
-    if (postType === 'media' && mediaUrls.filter(url => url.trim()).length === 0) return;
-    if (postType === 'poll' && (!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2)) return;
-
-    setIsSubmitting(true);
     try {
-      const postData: any = {
+      setIsSubmitting(true);
+      
+      // Prepare post data based on type
+      let postData: any = {
         group_id: groupId,
         user_id: user.id,
-        content: content.trim()
+        content: postType === 'poll' ? pollQuestion : content.trim(),
+        post_type: postType
       };
-
+      
       if (postType === 'media') {
         postData.media_urls = mediaUrls.filter(url => url.trim());
         postData.media_type = mediaType;
       }
-
-      // For polls, we'll store them in post content as JSON for now
-      if (postType === 'poll') {
-        postData.content = JSON.stringify({
-          question: pollQuestion,
-          options: pollOptions.filter(o => o.trim()),
-          type: 'poll'
-        });
-      }
-
-      const { error } = await supabase
+      
+      const { data: newPost, error: postError } = await supabase
         .from('group_posts')
-        .insert(postData);
+        .insert(postData)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (postError) throw postError;
+
+      // If poll, create poll options
+      if (postType === 'poll' && newPost) {
+        const validOptions = pollOptions.filter(opt => opt.trim());
+        const optionsData = validOptions.map((option, index) => ({
+          post_id: newPost.id,
+          option_text: option,
+          option_order: index
+        }));
+
+        const { error: optionsError } = await supabase
+          .from('poll_options')
+          .insert(optionsData);
+
+        if (optionsError) throw optionsError;
+      }
 
       toast({
         title: isRTL ? 'تم النشر' : 'Post Created',
@@ -127,6 +175,7 @@ export const CreatePostDialog: React.FC<CreatePostDialogProps> = ({ groupId, onP
       // Reset form
       setContent('');
       setMediaUrls([]);
+      setMediaType('image');
       setPollQuestion('');
       setPollOptions(['', '']);
       setPostType('text');

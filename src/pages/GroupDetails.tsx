@@ -65,7 +65,7 @@ const GroupDetails = () => {
       // Load group info
       const { data: groupData, error: groupError } = await supabase
         .from('event_groups')
-        .select('*, visibility, requires_approval')
+        .select('*, visibility, requires_approval, cities(name, name_ar)')
         .eq('id', groupId)
         .single();
 

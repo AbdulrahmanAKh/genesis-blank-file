@@ -139,7 +139,32 @@ export default function DiscoverGroups() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      // Fetch interests for each group
+      const groupsWithInterests = await Promise.all(
+        (data || []).map(async (group) => {
+          const { data: interestsData } = await supabase
+            .from('group_interests')
+            .select('interest_id')
+            .eq('group_id', group.id);
+          
+          const interests = [];
+          if (interestsData && interestsData.length > 0) {
+            for (const item of interestsData) {
+              const { data: category } = await supabase
+                .from('categories')
+                .select('name, name_ar')
+                .eq('id', item.interest_id)
+                .single();
+              if (category) interests.push(category);
+            }
+          }
+          
+          return { ...group, interests };
+        })
+      );
+      
+      return groupsWithInterests;
     },
     enabled: !!user
   });
@@ -307,17 +332,27 @@ export default function DiscoverGroups() {
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-lg line-clamp-1">{group.group_name}</h3>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Badge variant="outline" className="text-xs">
-                          {group.group_type === 'region' ? 
-                            (isRTL ? 'منطقة' : 'Region') : 
-                            (isRTL ? 'فعالية' : 'Event')}
-                        </Badge>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         <span className="flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
                           {isRTL ? 'السعودية' : 'Saudi Arabia'}
+                          {group.cities && `, ${isRTL ? group.cities.name_ar : group.cities.name}`}
                         </span>
                       </div>
+                      {group.interests && group.interests.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {group.interests.slice(0, 3).map((interest: any, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {isRTL ? interest.name_ar : interest.name}
+                            </Badge>
+                          ))}
+                          {group.interests.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{group.interests.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between">

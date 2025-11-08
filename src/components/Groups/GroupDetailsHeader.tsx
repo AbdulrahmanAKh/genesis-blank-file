@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Trophy, Medal, Award, Users, Settings, UserPlus, Crown } from 'lucide-react';
+import { Trophy, Medal, Award, Users, Settings, UserPlus, Crown, MapPin, Tag } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguageContext } from '@/contexts/LanguageContext';
@@ -71,6 +71,7 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
+  const [groupCity, setGroupCity] = useState<{ name: string; name_ar: string } | null>(null);
 
   const canManageGroup = memberRole === 'owner' || memberRole === 'admin';
 
@@ -79,7 +80,20 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
   useEffect(() => {
     loadLeaderboard();
     loadMembers();
+    loadGroupCity();
   }, [groupId]);
+
+  const loadGroupCity = async () => {
+    const { data } = await supabase
+      .from('event_groups')
+      .select('cities(name, name_ar)')
+      .eq('id', groupId)
+      .single();
+    
+    if (data?.cities) {
+      setGroupCity(data.cities);
+    }
+  };
 
   const loadLeaderboard = async () => {
     try {
@@ -289,29 +303,35 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
           </div>
         </div>
 
-        <div className="mb-4 flex items-center gap-2">
-          <Badge variant="secondary" className="text-sm">
-            {groupType === 'region' 
-              ? (isRTL ? 'مجموعة منطقة' : 'Regional Group')
-              : (isRTL ? 'مجموعة فعالية' : 'Event Group')
-            }
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {visibility === 'public'
-              ? (isRTL ? 'عامة' : 'Public')
-              : (isRTL ? 'خاصة' : 'Private')}
-          </Badge>
-        </div>
-
-        {interests && interests.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {interests.map((interest) => (
-              <Badge key={interest.id} variant="outline" className="text-xs">
-                {isRTL ? interest.name_ar : interest.name}
-              </Badge>
-            ))}
+        <div className="space-y-3 mb-4">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              <span>
+                {isRTL ? 'السعودية' : 'Saudi Arabia'}
+                {groupCity && `, ${isRTL ? groupCity.name_ar : groupCity.name}`}
+              </span>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              {visibility === 'public'
+                ? (isRTL ? 'عامة' : 'Public')
+                : (isRTL ? 'خاصة' : 'Private')}
+            </Badge>
           </div>
-        )}
+          
+          {interests && interests.length > 0 && (
+            <div className="flex items-start gap-2">
+              <Tag className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div className="flex flex-wrap gap-2">
+                {interests.map((interest) => (
+                  <Badge key={interest.id} variant="secondary">
+                    {isRTL ? interest.name_ar : interest.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Leaderboard Section - Top 3 */}

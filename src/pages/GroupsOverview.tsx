@@ -30,12 +30,37 @@ export default function GroupsOverview() {
       if (!user) return [];
       const { data, error } = await supabase
         .from('event_groups')
-        .select('*')
+        .select('*, cities(name, name_ar)')
         .eq('created_by', user.id)
         .is('archived_at', null)
         .limit(6);
       if (error) throw error;
-      return data || [];
+      
+      // Fetch interests for each group
+      const groupsWithInterests = await Promise.all(
+        (data || []).map(async (group) => {
+          const { data: interestsData } = await supabase
+            .from('group_interests')
+            .select('interest_id')
+            .eq('group_id', group.id);
+          
+          const interests = [];
+          if (interestsData && interestsData.length > 0) {
+            for (const item of interestsData) {
+              const { data: category } = await supabase
+                .from('categories')
+                .select('name, name_ar')
+                .eq('id', item.interest_id)
+                .single();
+              if (category) interests.push(category);
+            }
+          }
+          
+          return { ...group, interests };
+        })
+      );
+      
+      return groupsWithInterests;
     },
     enabled: !!user
   });
@@ -52,7 +77,7 @@ export default function GroupsOverview() {
           role,
           event_groups!inner (
             id, group_name, group_type, current_members, max_members, 
-            created_at, created_by, archived_at
+            created_at, created_by, archived_at, city_id, cities(name, name_ar)
           )
         `)
         .eq('user_id', user.id)
@@ -60,9 +85,36 @@ export default function GroupsOverview() {
         .is('event_groups.archived_at', null)
         .limit(6);
       if (error) throw error;
-      return (data || [])
+      
+      const groups = (data || [])
         .filter((m: any) => m.event_groups)
         .map((m: any) => ({ ...m.event_groups, memberRole: m.role }));
+      
+      // Fetch interests for each group
+      const groupsWithInterests = await Promise.all(
+        groups.map(async (group: any) => {
+          const { data: interestsData } = await supabase
+            .from('group_interests')
+            .select('interest_id')
+            .eq('group_id', group.id);
+          
+          const interests = [];
+          if (interestsData && interestsData.length > 0) {
+            for (const item of interestsData) {
+              const { data: category } = await supabase
+                .from('categories')
+                .select('name, name_ar')
+                .eq('id', item.interest_id)
+                .single();
+              if (category) interests.push(category);
+            }
+          }
+          
+          return { ...group, interests };
+        })
+      );
+      
+      return groupsWithInterests;
     },
     enabled: !!user
   });
@@ -81,12 +133,37 @@ export default function GroupsOverview() {
       if (!searchTerm) return [];
       const { data, error } = await supabase
         .from('event_groups')
-        .select('*')
+        .select('*, cities(name, name_ar)')
         .ilike('group_name', `%${searchTerm}%`)
         .is('archived_at', null)
         .order('current_members', { ascending: false });
       if (error) throw error;
-      return data || [];
+      
+      // Fetch interests for each group
+      const groupsWithInterests = await Promise.all(
+        (data || []).map(async (group) => {
+          const { data: interestsData } = await supabase
+            .from('group_interests')
+            .select('interest_id')
+            .eq('group_id', group.id);
+          
+          const interests = [];
+          if (interestsData && interestsData.length > 0) {
+            for (const item of interestsData) {
+              const { data: category } = await supabase
+                .from('categories')
+                .select('name, name_ar')
+                .eq('id', item.interest_id)
+                .single();
+              if (category) interests.push(category);
+            }
+          }
+          
+          return { ...group, interests };
+        })
+      );
+      
+      return groupsWithInterests;
     },
     enabled: !!searchTerm
   });
@@ -101,7 +178,7 @@ export default function GroupsOverview() {
       // Build query to exclude user's groups
       let query = supabase
         .from('event_groups')
-        .select('*')
+        .select('*, cities(name, name_ar)')
         .is('archived_at', null);
 
       // Exclude groups where user is a member or creator
@@ -115,7 +192,32 @@ export default function GroupsOverview() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      // Fetch interests for each group
+      const groupsWithInterests = await Promise.all(
+        (data || []).map(async (group) => {
+          const { data: interestsData } = await supabase
+            .from('group_interests')
+            .select('interest_id')
+            .eq('group_id', group.id);
+          
+          const interests = [];
+          if (interestsData && interestsData.length > 0) {
+            for (const item of interestsData) {
+              const { data: category } = await supabase
+                .from('categories')
+                .select('name, name_ar')
+                .eq('id', item.interest_id)
+                .single();
+              if (category) interests.push(category);
+            }
+          }
+          
+          return { ...group, interests };
+        })
+      );
+      
+      return groupsWithInterests;
     },
     enabled: !!user
   });
@@ -185,17 +287,27 @@ export default function GroupsOverview() {
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="outline" className="text-xs">
-                {group.group_type === 'region' ? 
-                  (isRTL ? 'منطقة' : 'Region') : 
-                  (isRTL ? 'فعالية' : 'Event')}
-              </Badge>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <span className="flex items-center gap-1">
                 <MapPin className="w-3 h-3" />
                 {isRTL ? 'السعودية' : 'Saudi Arabia'}
+                {group.cities && `, ${isRTL ? group.cities.name_ar : group.cities.name}`}
               </span>
             </div>
+            {group.interests && group.interests.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {group.interests.slice(0, 3).map((interest: any, idx: number) => (
+                  <Badge key={idx} variant="secondary" className="text-xs">
+                    {isRTL ? interest.name_ar : interest.name}
+                  </Badge>
+                ))}
+                {group.interests.length > 3 && (
+                  <Badge variant="secondary" className="text-xs">
+                    +{group.interests.length - 3}
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Members Count & Avatars */}
@@ -230,35 +342,19 @@ export default function GroupsOverview() {
       <Navbar />
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
-        <div className="mb-8 text-center space-y-6">
+        <div className="mb-8 text-center space-y-4">
           <div>
             <h1 className="text-4xl font-bold mb-4">
-              {isRTL ? 'المجموعات والفعاليات' : 'Groups & Events'}
+              {isRTL ? 'المجموعات' : 'Groups'}
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               {isRTL 
-                ? 'تواصل مع المغامرين، انضم للفعاليات، وشارك تجاربك' 
-                : 'Connect with adventurers, join events, and share your experiences'}
+                ? 'تواصل مع المغامرين، انضم للمجموعات، وشارك تجاربك' 
+                : 'Connect with adventurers, join groups, and share your experiences'}
             </p>
           </div>
           
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-4 justify-center">
-            <CreateGroupDialog 
-              onGroupCreated={() => {}}
-            />
-            <Button variant="outline" onClick={() => navigate('/events')} size="lg">
-              {isRTL ? 'الفعاليات' : 'Events'}
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/leaderboard')} size="lg">
-              <TrendingUp className={`w-4 h-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-              {isRTL ? 'لوحة المتصدرين' : 'Leaderboard'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Search Bar at Top */}
-        <div className="mb-8">
+          {/* Search Bar with Create Group Button */}
           <div className="flex gap-2 max-w-2xl mx-auto">
             <div className="relative flex-1">
               <Search className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} h-4 w-4 text-muted-foreground`} />
@@ -269,15 +365,26 @@ export default function GroupsOverview() {
                 className={isRTL ? 'pr-10' : 'pl-10'}
               />
             </div>
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => setFilterDialogOpen(true)}
-            >
-              <Filter className="w-4 h-4" />
-            </Button>
+            <CreateGroupDialog 
+              onGroupCreated={() => {}}
+            />
           </div>
         </div>
+
+        {/* Inline Filters - shown when searching */}
+        {searchTerm && (
+          <div className="mb-6 p-4 bg-muted/30 rounded-lg">
+            <p className="text-sm text-muted-foreground mb-3 font-medium">
+              {isRTL ? 'تصفية النتائج' : 'Filter Results'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setFilterDialogOpen(true)}>
+                <Filter className="w-3 h-3 mr-2" />
+                {isRTL ? 'المزيد من الفلاتر' : 'More Filters'}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Search Results */}
         {showSearchResults ? (

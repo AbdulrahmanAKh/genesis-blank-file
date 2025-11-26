@@ -229,6 +229,27 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
     return posts;
   };
 
+  const handlePostUpdate = async (postId: string) => {
+    // Optimized: only update the specific post's counts instead of reloading all posts
+    try {
+      const { data: updatedPost } = await supabase
+        .from('group_posts')
+        .select('likes_count, comments_count')
+        .eq('id', postId)
+        .single();
+
+      if (updatedPost) {
+        setPosts(prev => prev.map(p => 
+          p.id === postId 
+            ? { ...p, ...updatedPost }
+            : p
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+    }
+  };
+
   const filteredPosts = filterPosts(posts);
 
   if (isLoading) {
@@ -372,7 +393,7 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
           post={selectedPost}
           open={!!selectedPost}
           onClose={() => setSelectedPost(null)}
-          onUpdate={loadPosts}
+          onUpdate={() => handlePostUpdate(selectedPost.id)}
           userRole={userRole}
         />
       )}

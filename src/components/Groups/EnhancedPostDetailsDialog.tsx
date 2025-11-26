@@ -266,96 +266,96 @@ export const EnhancedPostDetailsDialog: React.FC<EnhancedPostDetailsDialogProps>
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>{isRTL ? 'المنشور والتعليقات' : 'Post & Comments'}</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
-          {/* Original Post */}
-          <div className="mb-6 pb-6 border-b">
-            <div className="flex items-center gap-3 mb-4">
-              <Avatar className="h-11 w-11">
-                <AvatarImage src={post.profiles?.avatar_url} />
-                <AvatarFallback>
-                  {post.profiles?.full_name?.charAt(0) || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="font-semibold">{post.profiles?.full_name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: isRTL ? ar : undefined })}
-                </div>
+        {/* Original Post - Fixed position */}
+        <div className="px-6 pb-4 border-b">
+          <div className="flex items-center gap-3 mb-4">
+            <Avatar className="h-11 w-11">
+              <AvatarImage src={post.profiles?.avatar_url} />
+              <AvatarFallback>
+                {post.profiles?.full_name?.charAt(0) || '?'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="font-semibold">{post.profiles?.full_name}</div>
+              <div className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: isRTL ? ar : undefined })}
               </div>
-            </div>
-
-            <p className="mb-4 whitespace-pre-wrap leading-relaxed">{post.content}</p>
-
-            <div className="flex items-center gap-6 text-sm text-muted-foreground pt-3 border-t">
-              <button className="flex items-center gap-2 hover:text-foreground transition">
-                <Heart className="w-4 h-4" />
-                <span>{post.likes_count || 0}</span>
-              </button>
-              <button className="flex items-center gap-2 hover:text-foreground transition">
-                <MessageCircle className="w-4 h-4" />
-                <span>{post.comments_count || 0}</span>
-              </button>
             </div>
           </div>
 
-          {/* Comments */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-base flex items-center gap-2">
+          <p className="mb-4 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+
+          <div className="flex items-center gap-6 text-sm text-muted-foreground pt-3 border-t">
+            <button className="flex items-center gap-2 hover:text-foreground transition">
+              <Heart className="w-4 h-4" />
+              <span>{post.likes_count || 0}</span>
+            </button>
+            <button className="flex items-center gap-2 hover:text-foreground transition">
               <MessageCircle className="w-4 h-4" />
-              {isRTL ? 'التعليقات' : 'Comments'} ({post.comments_count || 0})
-            </h3>
-
-            {comments.length === 0 ? (
-              <div className="text-center py-12">
-                <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-                <p className="text-muted-foreground text-sm">
-                  {isRTL ? 'كن أول من يعلق' : 'Be the first to comment'}
-                </p>
-              </div>
-            ) : (
-              <ScrollArea className="h-96">
-                <div className="space-y-4 pr-2">
-                  {comments.map(comment => renderComment(comment))}
-                </div>
-              </ScrollArea>
-            )}
+              <span>{post.comments_count || 0}</span>
+            </button>
           </div>
-        </ScrollArea>
+        </div>
 
-        {/* Add Comment Input */}
-        <div className="flex gap-2 pt-4 border-t">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.user_metadata?.avatar_url} />
-            <AvatarFallback>
-              {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || '?'}
-            </AvatarFallback>
-          </Avatar>
-          <Textarea
-            placeholder={isRTL ? 'اكتب تعليقاً...' : 'Write a comment...'}
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            rows={2}
-            className="flex-1"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleAddComment(null);
-              }
-            }}
-          />
-          <Button
-            onClick={() => handleAddComment(null)}
-            disabled={!newComment.trim() || isSubmitting}
-            size="icon"
-            className="self-end"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+        {/* Comments Section - Scrollable */}
+        <div className="flex-1 flex flex-col min-h-0 px-6">
+          <h3 className="font-semibold text-base flex items-center gap-2 mb-4">
+            <MessageCircle className="w-4 h-4" />
+            {isRTL ? 'التعليقات' : 'Comments'} ({post.comments_count || 0})
+          </h3>
+
+          {comments.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground text-sm">
+                {isRTL ? 'كن أول من يعلق' : 'Be the first to comment'}
+              </p>
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 -mr-2 pr-2">
+              <div className="space-y-4 pb-4">
+                {comments.map(comment => renderComment(comment))}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+
+        {/* Add Comment Input - Fixed at bottom */}
+        <div className="px-6 py-4 border-t bg-background">
+          <div className="flex gap-2">
+            <Avatar className="h-8 w-8 flex-shrink-0">
+              <AvatarImage src={user?.user_metadata?.avatar_url} />
+              <AvatarFallback>
+                {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || '?'}
+              </AvatarFallback>
+            </Avatar>
+            <Textarea
+              placeholder={isRTL ? 'اكتب تعليقاً...' : 'Write a comment...'}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              rows={2}
+              className="flex-1 resize-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAddComment(null);
+                }
+              }}
+            />
+            <Button
+              onClick={() => handleAddComment(null)}
+              disabled={!newComment.trim() || isSubmitting}
+              size="icon"
+              className="self-end flex-shrink-0"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -227,10 +227,51 @@ const GroupDetails = () => {
     }
   };
 
-  const handleMembershipChange = () => {
-    loadGroupData();
-    if (canManageGroup) {
-      loadPendingRequestsCount();
+  const handleMembershipChange = async () => {
+    // Optimized: only refetch what changed instead of full reload
+    if (!groupId) return;
+    
+    try {
+      // Update member count and check current membership
+      const [groupResult, memberResult] = await Promise.all([
+        supabase
+          .from('event_groups')
+          .select('current_members')
+          .eq('id', groupId)
+          .single(),
+        user ? supabase
+          .from('group_members')
+          .select('*, profiles!group_members_user_id_fkey(full_name, avatar_url)')
+          .eq('group_id', groupId)
+          .eq('user_id', user.id)
+          .maybeSingle() : Promise.resolve({ data: null, error: null })
+      ]);
+
+      // Update group member count optimistically
+      if (groupResult.data && group) {
+        setGroup(prev => prev ? { ...prev, current_members: groupResult.data.current_members } : null);
+      }
+
+      // Update current member status
+      if (memberResult.data) {
+        const memberWithProfile = {
+          ...memberResult.data,
+          full_name: memberResult.data.profiles?.full_name,
+          avatar_url: memberResult.data.profiles?.avatar_url
+        };
+        setCurrentMember(memberWithProfile);
+      } else {
+        setCurrentMember(null);
+      }
+
+      // Reload pending requests count if admin
+      if (canManageGroup) {
+        loadPendingRequestsCount();
+      }
+    } catch (error) {
+      console.error('Error updating membership:', error);
+      // Fallback to full reload on error
+      loadGroupData();
     }
   };
 

@@ -23,12 +23,21 @@ interface GroupMember {
   joined_at: string;
   full_name?: string;
   avatar_url?: string;
+  profiles?: {
+    full_name?: string;
+    avatar_url?: string;
+  };
 }
 
 interface Interest {
   id: string;
   name: string;
   name_ar: string;
+}
+
+interface GroupInterestWithCategory {
+  interest_id: string;
+  categories: Interest | null;
 }
 
 interface GroupInfo {
@@ -88,27 +97,23 @@ const GroupDetails = () => {
 
       if (groupError) throw groupError;
 
-      // Load group interests
+      // Load group interests with JOIN instead of N+1 queries
       const { data: interestsData } = await supabase
         .from('group_interests')
-        .select('interest_id')
+        .select(`
+          interest_id,
+          categories:interest_id (
+            id,
+            name,
+            name_ar
+          )
+        `)
         .eq('group_id', groupId);
 
-      // Fetch category details for interests
-      const interests: Interest[] = [];
-      if (interestsData && interestsData.length > 0) {
-        for (const item of interestsData) {
-          const { data: category } = await supabase
-            .from('categories')
-            .select('id, name, name_ar')
-            .eq('id', item.interest_id)
-            .single();
-          
-          if (category) {
-            interests.push(category);
-          }
-        }
-      }
+      // Map to Interest array
+      const interests: Interest[] = ((interestsData as GroupInterestWithCategory[]) || [])
+        .map(item => item.categories)
+        .filter((cat): cat is Interest => cat !== null);
 
       setGroup({ 
         ...groupData, 
@@ -116,30 +121,26 @@ const GroupDetails = () => {
         city: groupData.cities 
       });
 
-      // Load members with profiles
+      // Load members with profiles using JOIN instead of N+1 queries
       const { data: membersData, error: membersError } = await supabase
         .from('group_members')
-        .select('*')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name,
+            avatar_url
+          )
+        `)
         .eq('group_id', groupId);
 
       if (membersError) throw membersError;
 
-      // Fetch profile names for all members
-      const membersWithNames = await Promise.all(
-        (membersData || []).map(async (member) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('user_id', member.user_id)
-            .single();
-
-          return {
-            ...member,
-            full_name: profile?.full_name || 'مستخدم',
-            avatar_url: profile?.avatar_url
-          };
-        })
-      );
+      // Map to include profile data
+      const membersWithNames = (membersData || []).map(member => ({
+        ...member,
+        full_name: member.profiles?.full_name || 'مستخدم',
+        avatar_url: member.profiles?.avatar_url
+      }));
 
       setMembers(membersWithNames);
 
@@ -200,19 +201,22 @@ const GroupDetails = () => {
     if (!currentMember) return;
 
     try {
+      const newMutedState = !currentMember.is_muted;
+      
       const { error } = await supabase
         .from('group_members')
-        .update({ is_muted: !currentMember.is_muted })
+        .update({ is_muted: newMutedState })
         .eq('id', currentMember.id);
 
       if (error) throw error;
 
+      // Optimistic update instead of full refetch
+      setCurrentMember(prev => prev ? { ...prev, is_muted: newMutedState } : null);
+
       toast({
         title: 'تم بنجاح',
-        description: currentMember.is_muted ? 'تم إلغاء الكتم' : 'تم كتم الإشعارات'
+        description: newMutedState ? 'تم كتم الإشعارات' : 'تم إلغاء الكتم'
       });
-
-      loadGroupData();
     } catch (error) {
       console.error('Error toggling mute:', error);
       toast({

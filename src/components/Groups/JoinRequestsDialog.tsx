@@ -100,13 +100,20 @@ export const JoinRequestsDialog: React.FC<JoinRequestsDialogProps> = ({
 
       if (memberError) throw memberError;
 
-      // Delete the request after approval
-      const { error: deleteError } = await supabase
+      // Get current user for reviewed_by
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+      // Update the request status instead of deleting
+      const { error: updateError } = await supabase
         .from('group_join_requests')
-        .delete()
+        .update({ 
+          status: 'approved', 
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: currentUser?.id || null
+        })
         .eq('id', requestId);
 
-      if (deleteError) throw deleteError;
+      if (updateError) throw updateError;
 
       // Update group member count
       const { data: groupData } = await supabase
@@ -149,10 +156,17 @@ export const JoinRequestsDialog: React.FC<JoinRequestsDialogProps> = ({
       // Optimistically remove from UI immediately
       setRequests(prev => prev.filter(req => req.id !== requestId));
 
-      // Delete the request after rejection
+      // Get current user for reviewed_by
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+      // Update the request status instead of deleting
       const { error } = await supabase
         .from('group_join_requests')
-        .delete()
+        .update({ 
+          status: 'rejected', 
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: currentUser?.id || null
+        })
         .eq('id', requestId);
 
       if (error) throw error;

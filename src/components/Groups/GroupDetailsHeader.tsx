@@ -229,42 +229,76 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
   };
 
   const handleJoinGroup = async () => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: isRTL ? 'خطأ' : 'Error',
+        description: isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first',
+        variant: 'destructive'
+      });
+      return;
+    }
 
     try {
       setIsJoining(true);
 
       if (requiresApproval) {
         // Check for existing request
-        const { data: existingRequest } = await supabase
+        const { data: existingRequest, error: checkError } = await supabase
           .from('group_join_requests')
           .select('id, status')
           .eq('group_id', groupId)
           .eq('user_id', user.id)
           .maybeSingle();
 
+        if (checkError) {
+          console.error('Error checking existing request:', checkError);
+          throw checkError;
+        }
+
+        if (existingRequest && existingRequest.status === 'pending') {
+          toast({
+            title: isRTL ? 'تنبيه' : 'Notice',
+            description: isRTL ? 'لديك طلب انضمام قيد المراجعة' : 'You already have a pending request',
+            variant: 'default'
+          });
+          setHasPendingRequest(true);
+          return;
+        }
+
         if (existingRequest) {
-          // Reactivate the request if it was rejected/approved
-          const { error } = await supabase
+          // Reactivate rejected/approved request
+          const { error: updateError } = await supabase
             .from('group_join_requests')
             .update({ 
               status: 'pending', 
-              reviewed_at: null, 
+              reviewed_at: null,
+              reviewed_by: null,
               created_at: new Date().toISOString() 
             })
             .eq('id', existingRequest.id);
 
-          if (error) throw error;
+          if (updateError) {
+            console.error('Error updating request:', updateError);
+            throw updateError;
+          }
         } else {
           // Create new join request
-          const { error } = await supabase
+          const { error: insertError, data: newRequest } = await supabase
             .from('group_join_requests')
             .insert({
               group_id: groupId,
-              user_id: user.id
-            });
+              user_id: user.id,
+              status: 'pending'
+            })
+            .select()
+            .single();
 
-          if (error) throw error;
+          if (insertError) {
+            console.error('Error creating join request:', insertError);
+            throw insertError;
+          }
+
+          console.log('Join request created successfully:', newRequest);
         }
 
         toast({
@@ -275,10 +309,9 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
         });
 
         setHasPendingRequest(true);
-        checkPendingRequest();
       } else {
-        // Direct join
-        const { error } = await supabase
+        // Direct join - no approval needed
+        const { error: joinError } = await supabase
           .from('group_members')
           .insert({
             group_id: groupId,
@@ -286,20 +319,24 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
             role: 'member'
           });
 
-        if (error) throw error;
+        if (joinError) {
+          console.error('Error joining group:', joinError);
+          throw joinError;
+        }
 
         toast({
           title: isRTL ? 'تم الانضمام' : 'Joined',
           description: isRTL ? 'تم الانضمام للمجموعة بنجاح' : 'Successfully joined the group'
         });
 
+        // Trigger callback to refresh membership status
         onMembershipChange?.();
       }
-    } catch (error) {
-      console.error('Error joining group:', error);
+    } catch (error: any) {
+      console.error('Error in handleJoinGroup:', error);
       toast({
         title: isRTL ? 'خطأ' : 'Error',
-        description: isRTL ? 'فشل الانضمام للمجموعة' : 'Failed to join group',
+        description: error?.message || (isRTL ? 'فشل الانضمام للمجموعة' : 'Failed to join group'),
         variant: 'destructive'
       });
     } finally {

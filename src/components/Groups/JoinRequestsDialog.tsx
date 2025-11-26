@@ -89,21 +89,10 @@ export const JoinRequestsDialog: React.FC<JoinRequestsDialogProps> = ({
       // Optimistically remove from UI immediately
       setRequests(prev => prev.filter(req => req.id !== requestId));
 
-      // Add user to group members
-      const { error: memberError } = await supabase
-        .from('group_members')
-        .insert({
-          group_id: groupId,
-          user_id: userId,
-          role: 'member'
-        });
-
-      if (memberError) throw memberError;
-
       // Get current user for reviewed_by
       const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      // Update the request status instead of deleting
+      // Update the request status FIRST
       const { error: updateError } = await supabase
         .from('group_join_requests')
         .update({ 
@@ -113,7 +102,24 @@ export const JoinRequestsDialog: React.FC<JoinRequestsDialogProps> = ({
         })
         .eq('id', requestId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Error updating request status:', updateError);
+        throw updateError;
+      }
+
+      // Add user to group members
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: groupId,
+          user_id: userId,
+          role: 'member'
+        });
+
+      if (memberError) {
+        console.error('Error adding member:', memberError);
+        throw memberError;
+      }
 
       // Update group member count
       const { data: groupData } = await supabase

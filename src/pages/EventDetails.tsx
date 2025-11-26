@@ -284,19 +284,30 @@ const EventDetails = () => {
           </div>
         </div>
 
-        {/* Detail Images Gallery - Only show if there are additional images */}
-        {detailImages.length > 0 && (
+        {/* Detail Images Gallery - Show first 4 images with "+X more" overlay */}
+        {event.detail_images && event.detail_images.length > 0 && (
           <div className="mb-8">
             <h3 className="text-lg font-semibold mb-4">صور الفعالية</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {detailImages.map((img, idx) => (
-                <div key={idx} className="relative rounded-lg overflow-hidden aspect-square">
+              {event.detail_images.slice(0, 4).map((img: string, idx: number) => (
+                <div 
+                  key={idx} 
+                  className="relative rounded-lg overflow-hidden aspect-square cursor-pointer group"
+                  onClick={() => window.open(img, '_blank')}
+                >
                   <img 
                     src={img} 
-                    alt={`Event detail ${idx + 1}`} 
-                    className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
-                    onClick={() => window.open(img, '_blank')}
+                    alt={`صورة ${idx + 1}`} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                   />
+                  {/* Show "+X more" overlay on 4th image if there are more */}
+                  {idx === 3 && event.detail_images.length > 4 && (
+                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                      <span className="text-white text-2xl font-bold">
+                        +{event.detail_images.length - 4}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

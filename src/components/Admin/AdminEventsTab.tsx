@@ -63,7 +63,7 @@ export const AdminEventsTab: React.FC<AdminEventsTabProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('admin.fields.title')}</TableHead>
+                <TableHead>{t('admin.fields.eventTitle')}</TableHead>
                 <TableHead>{t('admin.fields.organizer')}</TableHead>
                 <TableHead>{t('admin.fields.date')}</TableHead>
                 <TableHead>{t('admin.fields.price')}</TableHead>
@@ -77,7 +77,7 @@ export const AdminEventsTab: React.FC<AdminEventsTabProps> = ({
                   <TableCell className="font-medium">
                     {language === 'ar' ? event.title_ar : event.title}
                   </TableCell>
-                  <TableCell>{event.organizer_id?.slice(0, 8)}...</TableCell>
+                  <TableCell>{event.organizer_name || event.organizer_id?.slice(0, 8)}</TableCell>
                   <TableCell>
                     {format(new Date(event.start_date), 'yyyy-MM-dd')}
                   </TableCell>

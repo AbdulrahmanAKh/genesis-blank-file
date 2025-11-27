@@ -18,6 +18,7 @@ import { useGroupMessages } from '@/hooks/useGroupMessages';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ReportMessageDialog } from '@/components/Chat/ReportMessageDialog';
+import { ReportPostDialog } from '@/components/Groups/ReportPostDialog';
 
 interface Member {
   id: string;

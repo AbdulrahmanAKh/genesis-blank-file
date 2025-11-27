@@ -7,6 +7,7 @@ export const adminService = {
       const now = new Date();
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
       const [
         usersResult,
@@ -18,20 +19,30 @@ export const adminService = {
         lastMonthBookingsResult,
         categoriesResult,
         pendingEventsResult,
-        pendingServicesResult
+        pendingServicesResult,
+        activeUsersResult,
+        inactiveUsersResult,
+        pendingVerificationsResult,
+        openTicketsResult,
+        allBookingsResult,
+        confirmedBookingsResult
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', lastMonth.toISOString()).lt('created_at', thisMonth.toISOString()),
-        // احتساب الفعاليات المقبولة فقط
         supabase.from('events').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
         supabase.from('events').select('*', { count: 'exact', head: true }).eq('status', 'approved').gte('created_at', lastMonth.toISOString()).lt('created_at', thisMonth.toISOString()),
-        // احتساب الخدمات المقبولة فقط
         supabase.from('services').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
         supabase.from('bookings').select('total_amount').eq('status', 'confirmed'),
         supabase.from('bookings').select('total_amount').eq('status', 'confirmed').gte('created_at', lastMonth.toISOString()).lt('created_at', thisMonth.toISOString()),
         supabase.from('categories').select('*', { count: 'exact', head: true }),
         supabase.from('events').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('services').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+        supabase.from('services').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('last_activity', thirtyDaysAgo.toISOString()),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).lt('last_activity', thirtyDaysAgo.toISOString()),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
+        supabase.from('contact_submissions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed')
       ]);
 
       const totalUsers = usersResult.count || 0;
@@ -44,25 +55,24 @@ export const adminService = {
       const totalCategories = categoriesResult.count || 0;
       const pendingEvents = pendingEventsResult.count || 0;
       const pendingServices = pendingServicesResult.count || 0;
+      const activeUsers = activeUsersResult.count || 0;
+      const inactiveUsers = inactiveUsersResult.count || 0;
 
       const pendingReviewsCount = pendingEvents + pendingServices;
-
       const totalRevenue = bookingsData.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
       const lastMonthRevenue = lastMonthBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+
+      // Calculate KPIs
+      const dauMau = totalUsers > 0 ? activeUsers / totalUsers : 0;
+      const userChurn = totalUsers > 0 ? (inactiveUsers / totalUsers) * 100 : 0;
+      const arpu = totalUsers > 0 ? totalRevenue / totalUsers : 0;
+      const bookingConversion = (allBookingsResult.count || 0) > 0 
+        ? ((confirmedBookingsResult.count || 0) / (allBookingsResult.count || 0)) * 100 
+        : 0;
 
       const userGrowth = lastMonthUsers > 0 ? ((totalUsers - lastMonthUsers) / lastMonthUsers * 100).toFixed(1) : '0';
       const eventGrowth = lastMonthEvents > 0 ? ((totalEvents - lastMonthEvents) / lastMonthEvents * 100).toFixed(1) : '0';
       const revenueGrowth = lastMonthRevenue > 0 ? ((totalRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1) : '0';
-
-      console.log('✅ Admin Stats (Approved Only):', {
-        totalUsers,
-        totalEvents: `${totalEvents} (approved only)`,
-        totalServices: `${totalServices} (approved only)`,
-        totalRevenue,
-        activeBookings: bookingsData.length,
-        totalCategories,
-        pendingReviews: pendingReviewsCount
-      });
 
       return {
         totalUsers,
@@ -74,7 +84,13 @@ export const adminService = {
         revenueGrowth: `${revenueGrowth}%`,
         activeBookings: bookingsData.length,
         totalCategories,
-        pendingReviews: pendingReviewsCount
+        pendingReviews: pendingReviewsCount,
+        dauMau,
+        userChurn,
+        arpu,
+        bookingConversion,
+        pendingVerifications: pendingVerificationsResult.count || 0,
+        openSupportTickets: openTicketsResult.count || 0
       };
     } catch (error) {
       console.error('Error fetching overview stats:', error);
@@ -88,7 +104,13 @@ export const adminService = {
         revenueGrowth: '0%',
         activeBookings: 0,
         totalCategories: 0,
-        pendingReviews: 0
+        pendingReviews: 0,
+        dauMau: 0,
+        userChurn: 0,
+        arpu: 0,
+        bookingConversion: 0,
+        pendingVerifications: 0,
+        openSupportTickets: 0
       };
     }
   },
@@ -660,20 +682,34 @@ export const adminService = {
   async getUserGroups(userId: string) {
     const { data, error } = await supabase
       .from('group_members')
-      .select('*, event_groups(*)')
+      .select('id, role, joined_at, group_id, event_groups!inner(id, group_name)')
       .eq('user_id', userId);
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(item => ({
+      ...item,
+      group_name: item.event_groups?.group_name || 'Unknown Group'
+    }));
   },
 
   async getUserTransactions(userId: string) {
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('id, user_id')
+      .eq('user_id', userId)
+      .limit(50);
+    
+    if (bookingsError) throw bookingsError;
+    
+    if (!bookings || bookings.length === 0) return [];
+    
+    const bookingIds = bookings.map(b => b.id);
+    
     const { data, error } = await supabase
       .from('payments')
-      .select('*, bookings(*, events(title))')
-      .eq('bookings.user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .select('*')
+      .in('booking_id', bookingIds)
+      .order('created_at', { ascending: false });
     
     if (error) throw error;
     return data || [];
@@ -682,12 +718,15 @@ export const adminService = {
   async getUserBookings(userId: string) {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, events(title, title_ar, start_date)')
+      .select('*, events!inner(id, title, title_ar, start_date)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(booking => ({
+      ...booking,
+      event_title: booking.events?.title || booking.events?.title_ar || 'Unknown Event'
+    }));
   },
 
   async getUserActivityLog(userId: string) {
@@ -714,4 +753,13 @@ export const adminService = {
     return data || [];
   },
 };
+
+export const getUserWarnings = adminService.getUserWarnings;
+export const adjustLoyaltyPoints = adminService.adjustLoyaltyPoints;
+export const changeGroupRole = adminService.changeGroupRole;
+export const getUserGroups = adminService.getUserGroups;
+export const getUserTransactions = adminService.getUserTransactions;
+export const getUserBookings = adminService.getUserBookings;
+export const getUserActivityLog = adminService.getUserActivityLog;
+export const getUserGamification = adminService.getUserGamification;
 

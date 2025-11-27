@@ -19,35 +19,35 @@ export const EventCategoriesTab = () => {
   const loadCategories = async () => {
     try {
       const { data, error } = await supabase
-        .from('categories')
+        .from('user_interests')
         .select('*')
         .order('name_ar', { ascending: true });
       
       if (error) throw error;
       setCategories(data || []);
-      console.log('Loaded event categories:', data?.length);
+      console.log('Loaded user interests:', data?.length);
     } catch (error) {
-      console.error('Error loading categories:', error);
-      toast.error('حدث خطأ في تحميل التصنيفات');
+      console.error('Error loading interests:', error);
+      toast.error('حدث خطأ في تحميل الاهتمامات');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (categoryId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا التصنيف؟')) return;
+    if (!confirm('هل أنت متأكد من حذف هذا الاهتمام؟')) return;
     
     try {
       const { error } = await supabase
-        .from('categories')
+        .from('user_interests')
         .delete()
         .eq('id', categoryId);
       
       if (error) throw error;
-      toast.success('تم حذف التصنيف');
+      toast.success('تم حذف الاهتمام');
       loadCategories();
     } catch (error) {
-      console.error('Error deleting category:', error);
+      console.error('Error deleting interest:', error);
       toast.error('حدث خطأ في الحذف');
     }
   };
@@ -56,8 +56,8 @@ export const EventCategoriesTab = () => {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>إدارة تصنيفات الفعاليات</CardTitle>
-          <CategoryDialog type="event" onSuccess={loadCategories} />
+          <CardTitle>إدارة اهتمامات المستخدمين</CardTitle>
+          <CategoryDialog type="interest" onSuccess={loadCategories} />
         </div>
       </CardHeader>
       <CardContent>

@@ -437,19 +437,26 @@ const AdminPanel = () => {
           {/* Overview Tab */}
           <TabsContent value="overview">
             <AdminOverviewTab 
-              stats={stats || {
-                totalUsers: 0,
-                userGrowth: '0%',
-                totalEvents: 0,
-                eventGrowth: '0%',
-                totalServices: 0,
-                totalRevenue: 0,
-                revenueGrowth: '0%',
-                activeBookings: 0,
-                totalCategories: 0,
-                pendingReviews: 0
-              }} 
-              loading={statsLoading} 
+              stats={{
+                ...(stats || {}),
+                totalUsers: stats?.totalUsers || 0,
+                userGrowth: stats?.userGrowth || '0%',
+                totalEvents: stats?.totalEvents || 0,
+                eventGrowth: stats?.eventGrowth || '0%',
+                totalServices: stats?.totalServices || 0,
+                totalRevenue: stats?.totalRevenue || 0,
+                revenueGrowth: stats?.revenueGrowth || '0%',
+                activeBookings: stats?.activeBookings || 0,
+                totalCategories: stats?.totalCategories || 0,
+                pendingReviews: stats?.pendingReviews || 0,
+                dauMau: stats?.dauMau || 0,
+                userChurn: stats?.userChurn || 0,
+                arpu: stats?.arpu || 0,
+                bookingConversion: stats?.bookingConversion || 0,
+                pendingVerifications: stats?.pendingVerifications || 0,
+                openSupportTickets: stats?.openSupportTickets || 0
+              }}
+              loading={statsLoading}
             />
           </TabsContent>
 

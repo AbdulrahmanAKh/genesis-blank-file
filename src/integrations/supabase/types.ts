@@ -1349,6 +1349,7 @@ export type Database = {
           id_document_url: string | null
           interests: string[] | null
           interests_visibility: string | null
+          last_activity: string | null
           license_url: string | null
           phone: string | null
           points_balance: number | null
@@ -1365,6 +1366,7 @@ export type Database = {
           updated_at: string
           user_id: string
           verification_status: string | null
+          warning_count: number | null
         }
         Insert: {
           address?: string | null
@@ -1386,6 +1388,7 @@ export type Database = {
           id_document_url?: string | null
           interests?: string[] | null
           interests_visibility?: string | null
+          last_activity?: string | null
           license_url?: string | null
           phone?: string | null
           points_balance?: number | null
@@ -1402,6 +1405,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           verification_status?: string | null
+          warning_count?: number | null
         }
         Update: {
           address?: string | null
@@ -1423,6 +1427,7 @@ export type Database = {
           id_document_url?: string | null
           interests?: string[] | null
           interests_visibility?: string | null
+          last_activity?: string | null
           license_url?: string | null
           phone?: string | null
           points_balance?: number | null
@@ -1439,6 +1444,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verification_status?: string | null
+          warning_count?: number | null
         }
         Relationships: []
       }
@@ -2285,6 +2291,39 @@ export type Database = {
           total_service_revenue?: number | null
           total_withdrawn?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_warnings: {
+        Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          admin_id: string
+          content: string
+          created_at: string | null
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          admin_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          admin_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          reason?: string
           user_id?: string
         }
         Relationships: []

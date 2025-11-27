@@ -560,6 +560,158 @@ export const adminService = {
       console.error('Error rejecting provider:', error);
       throw error;
     }
-  }
+  },
+
+  // Warning System
+  async getUserWarnings(userId: string) {
+    const { data, error } = await supabase
+      .from('user_warnings')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false});
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async adjustLoyaltyPoints(userId: string, points: number, reason: string) {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
+
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('points_balance, total_points_earned')
+        .eq('user_id', userId)
+        .single();
+
+      const { error } = await supabase
+        .from('loyalty_ledger')
+        .insert({
+          user_id: userId,
+          points,
+          type: points > 0 ? 'bonus' : 'deduction',
+          description: reason,
+        });
+      
+      if (error) throw error;
+
+      // Update profile points balance
+      const newBalance = (currentProfile?.points_balance || 0) + points;
+      const newTotal = points > 0 
+        ? (currentProfile?.total_points_earned || 0) + points 
+        : currentProfile?.total_points_earned;
+
+      await supabase
+        .from('profiles')
+        .update({ 
+          points_balance: newBalance,
+          total_points_earned: newTotal
+        })
+        .eq('user_id', userId);
+
+      await supabase.functions.invoke('log-activity', {
+        body: {
+          action: 'points_adjustment',
+          entityType: 'user',
+          entityId: userId,
+          details: { points, reason, user_name: profile?.full_name || 'غير معروف' }
+        }
+      });
+    } catch (error) {
+      console.error('Error adjusting loyalty points:', error);
+      throw error;
+    }
+  },
+
+  async changeGroupRole(userId: string, groupId: string, newRole: 'owner' | 'admin' | 'member') {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
+
+      const { error } = await supabase
+        .from('group_members')
+        .update({ role: newRole })
+        .eq('user_id', userId)
+        .eq('group_id', groupId);
+      
+      if (error) throw error;
+
+      await supabase.functions.invoke('log-activity', {
+        body: {
+          action: 'group_role_change',
+          entityType: 'group',
+          entityId: groupId,
+          details: { userId, newRole, user_name: profile?.full_name || 'غير معروف' }
+        }
+      });
+    } catch (error) {
+      console.error('Error changing group role:', error);
+      throw error;
+    }
+  },
+
+  async getUserGroups(userId: string) {
+    const { data, error } = await supabase
+      .from('group_members')
+      .select('*, event_groups(*)')
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getUserTransactions(userId: string) {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*, bookings(*, events(title))')
+      .eq('bookings.user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getUserBookings(userId: string) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, events(title, title_ar, start_date)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getUserActivityLog(userId: string) {
+    const { data, error } = await supabase
+      .from('admin_activity_logs')
+      .select('*')
+      .eq('entity_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getUserGamification(userId: string) {
+    const { data, error } = await supabase
+      .from('loyalty_ledger')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    if (error) throw error;
+    return data || [];
+  },
 };
 

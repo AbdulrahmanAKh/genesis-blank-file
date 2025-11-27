@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguageContext } from '@/contexts/LanguageContext';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Navbar from '@/components/Layout/Navbar';
@@ -20,9 +21,9 @@ import { UserDetailsDialog } from '@/components/Admin/UserDetailsDialog';
 import { UserEditDialog } from '@/components/Admin/UserEditDialog';
 import { ServiceCategoriesTab } from '@/components/Admin/ServiceCategoriesTab';
 import { EventCategoriesTab } from '@/components/Admin/EventCategoriesTab';
-import { RegionalGroupsTab } from '@/components/Admin/RegionalGroupsTab';
 import { GroupManagementTab } from '@/components/Admin/GroupManagementTab';
 import { ReportedMessagesTab } from '@/components/Admin/ReportedMessagesTab';
+import { SupportTicketsTab } from '@/components/Admin/SupportTicketsTab';
 import { AdminOverviewTab } from '@/components/Admin/AdminOverviewTab';
 import { AdminEventsTab } from '@/components/Admin/AdminEventsTab';
 import { AdminServicesTab } from '@/components/Admin/AdminServicesTab';
@@ -45,6 +46,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 const AdminPanel = () => {
   const { userRole, loading: authLoading } = useAuth();
+  const { language, t } = useLanguageContext();
+  const isRTL = language === 'ar';
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
@@ -539,9 +542,9 @@ const AdminPanel = () => {
             <EventCategoriesTab />
           </TabsContent>
 
-          {/* Regional Groups Tab */}
-          <TabsContent value="regional-groups">
-            <RegionalGroupsTab />
+          {/* Support Tickets Tab */}
+          <TabsContent value="tickets">
+            <SupportTicketsTab />
           </TabsContent>
 
           {/* Groups Management Tab */}

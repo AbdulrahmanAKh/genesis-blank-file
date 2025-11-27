@@ -1303,6 +1303,94 @@ const translations = {
       translationUpdated: 'تم تحديث الترجمة بنجاح',
       cacheCleared: 'تم مسح الذاكرة المؤقتة',
       backupCreated: 'تم إنشاء النسخة الاحتياطية',
+      
+      // Warnings
+      warnings: {
+        issueWarning: 'إصدار تحذير',
+        issueWarningTo: 'إصدار تحذير إلى',
+        reason: 'السبب',
+        reasonPlaceholder: 'مثال: إساءة استخدام المنصة',
+        content: 'المحتوى',
+        contentPlaceholder: 'اكتب تفاصيل التحذير هنا...',
+        autoSuspendNote: 'تنبيه: 3 تحذيرات ستؤدي إلى تعليق تلقائي للحساب',
+        issueSuccess: 'تم إصدار التحذير بنجاح',
+        issueError: 'حدث خطأ أثناء إصدار التحذير',
+      },
+      
+      // Tickets
+      tickets: {
+        title: 'تذاكر الدعم',
+        name: 'الاسم',
+        email: 'البريد الإلكتروني',
+        category: 'الفئة',
+        subject: 'الموضوع',
+        status: 'الحالة',
+        createdAt: 'تاريخ الإنشاء',
+        viewDetails: 'عرض التفاصيل',
+        ticketDetails: 'تفاصيل التذكرة',
+        message: 'الرسالة',
+        adminResponse: 'رد الإدارة',
+        respondToTicket: 'الرد على التذكرة',
+        responsePlaceholder: 'اكتب ردك هنا...',
+        markResolved: 'وضع علامة كمحلولة',
+        responseSuccess: 'تم الرد بنجاح',
+        responseError: 'حدث خطأ أثناء الرد',
+        statusPending: 'قيد الانتظار',
+        statusResolved: 'محلولة',
+        statusInProgress: 'قيد المعالجة',
+        categoryTechnical: 'تقنية',
+        categoryBilling: 'فواتير',
+        categoryGeneral: 'عامة',
+      },
+      
+      // Enhanced KPIs
+      kpis: {
+        dau: 'المستخدمون النشطون اليوم',
+        mau: 'المستخدمون النشطون شهرياً',
+        userChurn: 'معدل التراجع',
+        arpu: 'متوسط الإيراد لكل مستخدم',
+        conversionRate: 'معدل التحويل',
+        openTickets: 'التذاكر المفتوحة',
+      },
+      
+      // User Management
+      fields: {
+        displayId: 'معرف المستخدم',
+        name: 'الاسم',
+        email: 'البريد الإلكتروني',
+        role: 'الدور',
+        status: 'الحالة',
+        registrationDate: 'تاريخ التسجيل',
+        actions: 'الإجراءات',
+      },
+      
+      userActions: {
+        changeGroupRole: 'تغيير دور المجموعة',
+        selectGroup: 'اختر مجموعة',
+        selectRole: 'اختر الدور',
+        impersonate: 'تسجيل الدخول كالمستخدم',
+        resetPassword: 'إعادة تعيين كلمة المرور',
+        adjustPoints: 'تعديل النقاط',
+        pointsReason: 'سبب التعديل',
+        pointsAmount: 'عدد النقاط',
+        addPoints: 'إضافة نقاط',
+        removePoints: 'إزالة نقاط',
+        profileTab: 'الملف الشخصي',
+        transactionsTab: 'المعاملات',
+        bookingsTab: 'الحجوزات',
+        groupsTab: 'المجموعات',
+        activityTab: 'سجل النشاط',
+        gamificationTab: 'المكافآت',
+      },
+    },
+    
+    // Warnings (user-facing)
+    warnings: {
+      officialWarning: 'تحذير رسمي',
+      totalWarnings: 'إجمالي التحذيرات',
+      suspensionWarning: 'تحذير: تحذير آخر سيؤدي إلى تعليق تلقائي!',
+      mustAcknowledge: 'يجب عليك قراءة والموافقة على التحذير للمتابعة',
+      iAcknowledge: 'أقر بأنني قرأت وفهمت التحذير',
     },
 
     // Follower Stats

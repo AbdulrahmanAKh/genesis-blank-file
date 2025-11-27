@@ -149,21 +149,11 @@ export default function JoinedGroups() {
                     />
                   </div>
                 ) : (
-                {group.image_url ? (
-                  <div className="h-40 overflow-hidden">
-                    <img 
-                      src={group.image_url} 
-                      alt={group.group_name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
                   <div className="h-40 bg-gradient-to-br from-primary/20 via-primary/10 to-background relative">
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Users className="w-16 h-16 text-primary/40" />
                     </div>
                   </div>
-                )}
                 )}
                 
                 <CardContent className="p-4">

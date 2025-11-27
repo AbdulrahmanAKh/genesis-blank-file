@@ -3,7 +3,7 @@ import { useLanguageContext } from '@/contexts/LanguageContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, MapPin, Users, Bookmark, BookmarkCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -11,22 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
-
-interface Event {
-  id: string;
-  title: string;
-  title_ar: string;
-  location: string;
-  location_ar: string;
-  start_date: string;
-  end_date: string;
-  current_attendees: number;
-  max_attendees: number;
-  image_url: string;
-  status: string;
-  is_bookmarked: boolean;
-  detail_images?: string[];
-}
+import { useGroupEvents, useInvalidateGroupQueries } from '@/hooks/useGroupQueries';
 
 interface GroupEventsProps {
   groupId: string;
@@ -37,81 +22,31 @@ export const GroupEvents: React.FC<GroupEventsProps> = ({ groupId }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('all');
   const [isOwner, setIsOwner] = useState(false);
-  const [showAllEvents, setShowAllEvents] = useState(true); // Always show full view
   const isRTL = language === 'ar';
+  const invalidate = useInvalidateGroupQueries();
 
   useEffect(() => {
-    loadEvents();
+    checkOwnership();
   }, [groupId, user]);
 
-  const loadEvents = async () => {
+  const checkOwnership = async () => {
     if (!user) return;
 
-    try {
-      setIsLoading(true);
+    const { data: groupData, error } = await supabase
+      .from('event_groups')
+      .select('created_by')
+      .eq('id', groupId)
+      .single();
 
-      // Check if user is the group owner FIRST
-      const { data: groupData, error: groupError } = await supabase
-        .from('event_groups')
-        .select('created_by')
-        .eq('id', groupId)
-        .single();
-
-      if (groupError) throw groupError;
-      const ownerCheck = groupData?.created_by === user.id;
-      setIsOwner(ownerCheck);
-
-      // Load all events associated with this group
-      // For owners, also include pending events
-      let query = supabase
-        .from('events')
-        .select('*')
-        .eq('group_id', groupId);
-      
-      // If user is owner, include all events, otherwise only approved
-      if (ownerCheck) {
-        query = query.in('status', ['approved', 'active', 'pending']);
-      } else {
-        query = query.in('status', ['approved', 'active']);
-      }
-      
-      const { data: eventsData, error: eventsError } = await query.order('start_date', { ascending: true });
-
-      if (eventsError) throw eventsError;
-
-      // Check bookmarks for all events
-      const eventsWithBookmarks = await Promise.all(
-        (eventsData || []).map(async (event) => {
-          const { data: bookmarkData } = await supabase
-            .from('event_bookmarks')
-            .select('id')
-            .eq('event_id', event.id)
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          return {
-            ...event,
-            is_bookmarked: !!bookmarkData
-          };
-        })
-      );
-
-      setEvents(eventsWithBookmarks);
-    } catch (error) {
-      console.error('Error loading events:', error);
-      toast({
-        title: isRTL ? 'خطأ' : 'Error',
-        description: isRTL ? 'فشل تحميل الفعاليات' : 'Failed to load events',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsLoading(false);
+    if (!error && groupData) {
+      setIsOwner(groupData.created_by === user.id);
     }
   };
+
+  // Use TanStack Query hook
+  const { data: events = [], isLoading } = useGroupEvents(groupId, user?.id, isOwner);
 
   const toggleBookmark = async (eventId: string, isBookmarked: boolean) => {
     if (!user) return;
@@ -128,27 +63,22 @@ export const GroupEvents: React.FC<GroupEventsProps> = ({ groupId }) => {
           .from('event_bookmarks')
           .insert({ event_id: eventId, user_id: user.id });
       }
-      loadEvents();
+      // Invalidate to refetch
+      invalidate.invalidateGroupEvents(groupId);
     } catch (error) {
       console.error('Error toggling bookmark:', error);
     }
   };
 
-  const filterEvents = (events: Event[]) => {
+  const filterEvents = (events: any[]) => {
     const now = new Date();
     
-    // For preview mode (not showing all), limit to 3 and exclude pending
-    if (!showAllEvents) {
-      return events.filter(e => e.status !== 'pending').slice(0, 3);
-    }
-    
-    // When showing all events
-    if (selectedTab === 'all') return events;
+    if (selectedTab === 'all') return events.filter(e => e.status !== 'pending');
     if (selectedTab === 'upcoming') {
-      return events.filter(e => new Date(e.start_date) > now);
+      return events.filter(e => new Date(e.start_date) > now && e.status !== 'pending');
     }
     if (selectedTab === 'past') {
-      return events.filter(e => new Date(e.end_date) < now);
+      return events.filter(e => new Date(e.end_date) < now && e.status !== 'pending');
     }
     if (selectedTab === 'pending') {
       return events.filter(e => e.status === 'pending');
@@ -177,9 +107,7 @@ export const GroupEvents: React.FC<GroupEventsProps> = ({ groupId }) => {
 
   return (
     <div className="space-y-4">
-      {/* Removed preview mode toggle - always show full view with tabs */}
-      
-      <div className="space-y-4">(
+      <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1">
             <TabsList className={`grid w-full ${isOwner ? 'grid-cols-4' : 'grid-cols-3'}`}>
@@ -236,7 +164,7 @@ export const GroupEvents: React.FC<GroupEventsProps> = ({ groupId }) => {
                       {/* Small gallery photos below thumbnail */}
                       {event.detail_images && event.detail_images.length > 0 && (
                         <div className="flex gap-2 px-2 overflow-x-auto">
-                          {event.detail_images.slice(0, 4).map((img, idx) => (
+                          {event.detail_images.slice(0, 4).map((img: string, idx: number) => (
                             <div key={idx} className="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
                               <img
                                 src={img}

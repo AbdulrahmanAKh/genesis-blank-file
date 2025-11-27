@@ -302,8 +302,8 @@ export const EnhancedPostDetailsDialog: React.FC<EnhancedPostDetailsDialogProps>
           </div>
         </div>
 
-        {/* Comments Section - Scrollable */}
-        <div className="flex-1 flex flex-col min-h-0 px-6">
+        {/* Comments Section - Scrollable with proper height constraint */}
+        <div className="flex-1 flex flex-col min-h-0 px-6 overflow-hidden">
           <h3 className="font-semibold text-base flex items-center gap-2 mb-4">
             <MessageCircle className="w-4 h-4" />
             {isRTL ? 'التعليقات' : 'Comments'} ({post.comments_count || 0})
@@ -317,7 +317,7 @@ export const EnhancedPostDetailsDialog: React.FC<EnhancedPostDetailsDialogProps>
               </p>
             </div>
           ) : (
-            <ScrollArea className="flex-1 -mr-2 pr-2">
+            <ScrollArea className="flex-1 h-full max-h-[calc(90vh-400px)] -mr-2 pr-2">
               <div className="space-y-4 pb-4">
                 {comments.map(comment => renderComment(comment))}
               </div>

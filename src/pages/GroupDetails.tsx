@@ -9,11 +9,7 @@ import { GroupPostsFeed } from '@/components/Groups/GroupPostsFeed';
 import { GroupDetailsHeader } from '@/components/Groups/GroupDetailsHeader';
 import { GroupEventsPreview } from '@/components/Groups/GroupEventsPreview';
 import { JoinRequestsDialog } from '@/components/Groups/JoinRequestsDialog';
-import { GroupNonMemberThumbnail } from '@/components/Groups/GroupNonMemberView/GroupNonMemberThumbnail';
-import { GroupNonMemberInfo } from '@/components/Groups/GroupNonMemberView/GroupNonMemberInfo';
-import { GroupNonMemberConditions } from '@/components/Groups/GroupNonMemberView/GroupNonMemberConditions';
-import { GroupNonMemberManagement } from '@/components/Groups/GroupNonMemberView/GroupNonMemberManagement';
-import { GroupNonMemberActions } from '@/components/Groups/GroupNonMemberView/GroupNonMemberActions';
+import { NonMemberGroupView } from '@/components/Groups/NonMemberGroupView';
 import Navbar from '@/components/Layout/Navbar';
 import { ArrowLeft } from 'lucide-react';
 import { useGroupDetails, useGroupMembers, usePendingJoinRequests, useInvalidateGroupQueries } from '@/hooks/useGroupQueries';
@@ -85,6 +81,7 @@ const GroupDetails = () => {
     invalidate.invalidateGroupDetails(groupId!);
     invalidate.invalidateGroupMembers(groupId!);
     invalidate.invalidatePendingRequests(groupId!);
+    invalidate.invalidateMyGroups(); // Update my groups list
   };
 
   if (isLoading) {
@@ -149,46 +146,17 @@ const GroupDetails = () => {
             />
           </div>
 
-          {/* Non-Member View - Group Info */}
+          {/* Non-Member View */}
           {!currentMember && (
-            <div className="bg-card rounded-lg border shadow-sm p-6 space-y-6">
-              <GroupNonMemberThumbnail 
-                imageUrl={group.image_url}
-                groupName={group.group_name}
-              />
-              
-              <GroupNonMemberInfo
-                groupName={group.group_name}
-                location={group.location_city}
-                memberCount={group.current_members}
-                description={group.description}
-                interests={group.interests}
-                isRTL={isRTL}
-              />
-
-              <GroupNonMemberConditions
-                equipment={group.equipment}
-                minAge={group.min_age}
-                maxAge={group.max_age}
-                genderRestriction={group.gender_restriction}
-                locationCity={group.location_city}
-                isRTL={isRTL}
-              />
-
-              <GroupNonMemberManagement
-                members={members}
-                isRTL={isRTL}
-              />
-
-              <GroupNonMemberActions
-                visibility={group.visibility}
-                requiresApproval={group.requires_approval}
-                hasPendingRequest={false}
-                isLoading={false}
-                onJoinClick={handleMembershipChange}
-                isRTL={isRTL}
-              />
-            </div>
+            <NonMemberGroupView
+              group={{
+                ...group,
+                city: group.cities || group.location_city,
+              }}
+              members={members}
+              isRTL={isRTL}
+              onMembershipChange={handleMembershipChange}
+            />
           )}
 
           {/* Only show group content to members */}

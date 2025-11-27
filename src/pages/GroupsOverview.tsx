@@ -33,7 +33,7 @@ export default function GroupsOverview() {
   // Use optimized TanStack Query hooks
   const { data: myGroupsData } = useMyGroups(user?.id);
   const { data: discoverGroupsData } = useDiscoverGroups(user?.id);
-  const { data: searchResultsData } = useSearchGroups(searchTerm);
+  const { data: searchResultsData } = useSearchGroups(searchTerm, filters);
   const { data: groupMembersMapData } = useGroupMembersAvatarsMap();
 
   // Extract organizer and joined groups from single hook

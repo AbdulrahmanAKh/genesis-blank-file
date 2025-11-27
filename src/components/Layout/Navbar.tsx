@@ -61,6 +61,7 @@ const Navbar = () => {
           ...baseItems,
           { title: "فعالياتي", href: "/my-events", titleEn: "My Events" },
           { title: "القروبات", href: "/groups", titleEn: "Groups" },
+          { title: "الخدمات", href: "/services", titleEn: "My Services" },
           { title: "النقاط", href: "/points", titleEn: "Points" },
           { title: "تواصل معنا", href: "/contact", titleEn: "Contact" },
         ];

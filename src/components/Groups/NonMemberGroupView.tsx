@@ -54,6 +54,11 @@ interface GroupInfo {
   equipment?: string[] | null;
   city?: GroupCity | null;
   interests?: GroupInterest[];
+  min_age?: number | null;
+  max_age?: number | null;
+  gender_restriction?: string | null;
+  location_restriction?: string | null;
+  location_city?: GroupCity | null;
 }
 
 interface NonMemberGroupViewProps {
@@ -266,6 +271,47 @@ export const NonMemberGroupView: React.FC<NonMemberGroupViewProps> = ({
                 </span>
               </div>
             )}
+
+            {/* Group Restrictions */}
+            {((group.min_age && group.min_age > 0) || (group.max_age && group.max_age < 100) || group.gender_restriction || group.location_restriction) && (
+              <div className="space-y-2 pt-3 border-t">
+                <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                  <Shield className="w-4 h-4" />
+                  <span className="text-sm font-semibold">
+                    {isRTL ? 'متطلبات الانضمام' : 'Join Requirements'}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {((group.min_age && group.min_age > 0) || (group.max_age && group.max_age < 100)) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline" className="font-normal">
+                        {isRTL ? 'العمر: ' : 'Age: '}
+                        {group.min_age || 18} - {group.max_age || 65} {isRTL ? 'سنة' : 'years'}
+                      </Badge>
+                    </div>
+                  )}
+                  {group.gender_restriction && group.gender_restriction !== 'both' && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline" className="font-normal">
+                        {isRTL ? 'الجنس: ' : 'Gender: '}
+                        {group.gender_restriction === 'male' 
+                          ? (isRTL ? 'ذكور فقط' : 'Male only')
+                          : (isRTL ? 'إناث فقط' : 'Female only')}
+                      </Badge>
+                    </div>
+                  )}
+                  {group.location_restriction && group.location_city && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline" className="font-normal">
+                        {isRTL ? 'المقيمون في: ' : 'Residents of: '}
+                        {isRTL ? group.location_city.name_ar : group.location_city.name}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {group.equipment && group.equipment.length > 0 && (
               <div className="space-y-2 pt-3 border-t">
                 <div className="flex items-center gap-2 text-muted-foreground">

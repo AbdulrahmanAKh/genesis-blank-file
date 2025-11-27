@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguageContext } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Navbar from '@/components/Layout/Navbar';
 import Footer from '@/components/Layout/Footer';
 import { X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FilterState {
   categories: string[];
@@ -23,6 +24,8 @@ export default function FilterGroups() {
   const { language } = useLanguageContext();
   const navigate = useNavigate();
   const isRTL = language === 'ar';
+  const [categories, setCategories] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
 
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
@@ -32,27 +35,27 @@ export default function FilterGroups() {
     gender: 'all'
   });
 
-  const categories = [
-    { id: 'sports', nameAr: 'رياضة', nameEn: 'Sports' },
-    { id: 'music', nameAr: 'موسيقى', nameEn: 'Music' },
-    { id: 'yoga', nameAr: 'يوغا', nameEn: 'Yoga' },
-    { id: 'hiking', nameAr: 'تسلق', nameEn: 'Hiking' },
-    { id: 'camping', nameAr: 'تخييم', nameEn: 'Camping' },
-    { id: 'diving', nameAr: 'غوص', nameEn: 'Diving' },
-    { id: 'cycling', nameAr: 'دراجات', nameEn: 'Cycling' },
-    { id: 'climbing', nameAr: 'تسلق جبال', nameEn: 'Rock Climbing' }
-  ];
+  useEffect(() => {
+    loadFilterOptions();
+  }, []);
 
-  const cities = [
-    { id: 'riyadh', nameAr: 'الرياض', nameEn: 'Riyadh' },
-    { id: 'jeddah', nameAr: 'جدة', nameEn: 'Jeddah' },
-    { id: 'dammam', nameAr: 'الدمام', nameEn: 'Dammam' },
-    { id: 'mecca', nameAr: 'مكة', nameEn: 'Mecca' },
-    { id: 'medina', nameAr: 'المدينة', nameEn: 'Medina' },
-    { id: 'abha', nameAr: 'أبها', nameEn: 'Abha' },
-    { id: 'tabuk', nameAr: 'تبوك', nameEn: 'Tabuk' },
-    { id: 'taif', nameAr: 'الطائف', nameEn: 'Taif' }
-  ];
+  const loadFilterOptions = async () => {
+    // Fetch real categories
+    const { data: categoriesData } = await supabase
+      .from('categories')
+      .select('id, name, name_ar')
+      .order('name');
+    
+    // Fetch real cities
+    const { data: citiesData } = await supabase
+      .from('cities')
+      .select('id, name, name_ar')
+      .eq('is_active', true)
+      .order('name');
+
+    setCategories(categoriesData || []);
+    setCities(citiesData || []);
+  };
 
   const handleCategoryToggle = (categoryId: string) => {
     setFilters(prev => ({
@@ -121,7 +124,7 @@ export default function FilterGroups() {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {categories.map(category => (
-                  <div key={category.id} className="flex items-center space-x-2">
+                  <div key={category.id} className="flex items-center space-x-2 rtl:space-x-reverse">
                     <Checkbox
                       id={category.id}
                       checked={filters.categories.includes(category.id)}
@@ -131,7 +134,7 @@ export default function FilterGroups() {
                       htmlFor={category.id}
                       className="cursor-pointer text-sm font-normal"
                     >
-                      {isRTL ? category.nameAr : category.nameEn}
+                      {isRTL ? category.name_ar : category.name}
                     </Label>
                   </div>
                 ))}
@@ -155,7 +158,7 @@ export default function FilterGroups() {
                   <SelectItem value="all">{isRTL ? 'جميع المدن' : 'All Cities'}</SelectItem>
                   {cities.map(city => (
                     <SelectItem key={city.id} value={city.id}>
-                      {isRTL ? city.nameAr : city.nameEn}
+                      {isRTL ? city.name_ar : city.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

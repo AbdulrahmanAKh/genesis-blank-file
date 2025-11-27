@@ -402,14 +402,20 @@ export function useGroupMembersAvatarsMap() {
   });
 }
 
-// ============= SEARCH GROUPS =============
-export function useSearchGroups(searchTerm: string) {
+// ============= SEARCH GROUPS WITH FILTERS =============
+export function useSearchGroups(searchTerm: string, filters?: {
+  interests?: string[];
+  cities?: string[];
+  memberRange?: [number, number];
+  ageRange?: [number, number];
+  gender?: string[];
+}) {
   return useQuery({
-    queryKey: ['search-groups', searchTerm],
+    queryKey: ['search-groups', searchTerm, JSON.stringify(filters)],
     queryFn: async () => {
-      if (!searchTerm) return [];
+      if (!searchTerm && !filters) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('event_groups')
         .select(`
           *,
@@ -419,19 +425,67 @@ export function useSearchGroups(searchTerm: string) {
             user_interests:interest_id(name, name_ar)
           )
         `)
-        .ilike('group_name', `%${searchTerm}%`)
-        .is('archived_at', null)
-        .order('current_members', { ascending: false });
+        .is('archived_at', null);
+
+      // Apply search term
+      if (searchTerm) {
+        query = query.ilike('group_name', `%${searchTerm}%`);
+      }
+
+      // Apply filters
+      if (filters) {
+        // City filter
+        if (filters.cities && filters.cities.length > 0) {
+          query = query.in('city_id', filters.cities);
+        }
+
+        // Gender filter
+        if (filters.gender && filters.gender.length > 0) {
+          if (!filters.gender.includes('both')) {
+            query = query.in('gender_restriction', filters.gender);
+          }
+        }
+
+        // Member range filter
+        if (filters.memberRange) {
+          query = query
+            .gte('current_members', filters.memberRange[0])
+            .lte('current_members', filters.memberRange[1]);
+        }
+
+        // Age range filter - groups that accept users in this age range
+        if (filters.ageRange) {
+          query = query
+            .or(`min_age.lte.${filters.ageRange[1]},min_age.is.null`)
+            .or(`max_age.gte.${filters.ageRange[0]},max_age.is.null`);
+        }
+      }
+
+      const { data, error } = await query.order('current_members', { ascending: false });
 
       if (error) throw error;
 
-      // Map interests
-      return (data || []).map(group => ({
+      let results = (data || []).map(group => ({
         ...group,
         interests: (group.group_interests || []).map((gi: any) => gi.user_interests).filter(Boolean)
       }));
+
+      // Apply interest filter in post-processing (since it requires JOIN)
+      if (filters?.interests && filters.interests.length > 0) {
+        results = results.filter(group => 
+          group.interests.some((interest: any) => filters.interests?.includes(interest.id))
+        );
+      }
+
+      return results;
     },
-    enabled: searchTerm.length > 0,
+    enabled: searchTerm.length > 0 || !!(filters && (
+      (filters.interests && filters.interests.length > 0) ||
+      (filters.cities && filters.cities.length > 0) ||
+      (filters.gender && filters.gender.length > 0) ||
+      (filters.memberRange && (filters.memberRange[0] !== 0 || filters.memberRange[1] !== 500)) ||
+      (filters.ageRange && (filters.ageRange[0] !== 18 || filters.ageRange[1] !== 65))
+    )),
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: false,
   });

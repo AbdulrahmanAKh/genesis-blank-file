@@ -123,16 +123,44 @@ export default function DiscoverGroups() {
         query = query.ilike('group_name', `%${searchTerm}%`);
       }
 
-      // Apply city filter
-      if (activeFilters?.city && activeFilters.city !== '' && activeFilters.city !== 'all') {
-        query = query.eq('city_id', activeFilters.city);
-      }
+      // Apply filters
+      if (activeFilters) {
+        // Apply interest/category filter
+        if (activeFilters.categories && activeFilters.categories.length > 0) {
+          const { data: groupsWithInterests } = await supabase
+            .from('group_interests')
+            .select('group_id')
+            .in('interest_id', activeFilters.categories);
+          
+          if (groupsWithInterests && groupsWithInterests.length > 0) {
+            const groupIds = groupsWithInterests.map(g => g.group_id);
+            query = query.in('id', groupIds);
+          }
+        }
 
-      // Apply participant range filter
-      if (activeFilters?.participantRange) {
-        query = query
-          .gte('current_members', activeFilters.participantRange[0])
-          .lte('current_members', activeFilters.participantRange[1]);
+        // Apply city filter
+        if (activeFilters.city && activeFilters.city !== '' && activeFilters.city !== 'all') {
+          query = query.eq('city_id', activeFilters.city);
+        }
+
+        // Apply gender filter
+        if (activeFilters.gender !== 'all') {
+          query = query.eq('gender_restriction', activeFilters.gender);
+        }
+
+        // Apply participant range filter
+        if (activeFilters.participantRange) {
+          query = query
+            .gte('current_members', activeFilters.participantRange[0])
+            .lte('current_members', activeFilters.participantRange[1]);
+        }
+
+        // Apply age range filter
+        if (activeFilters.ageRange) {
+          query = query
+            .gte('min_age', activeFilters.ageRange[0])
+            .lte('max_age', activeFilters.ageRange[1]);
+        }
       }
 
       query = query.order('current_members', { ascending: false });

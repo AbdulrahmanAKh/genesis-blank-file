@@ -169,7 +169,10 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
 
                 {/* Media */}
                 {post.media_urls && Array.isArray(post.media_urls) && post.media_urls.length > 0 && (
-                  <div className={`${post.media_urls.length === 1 ? '' : 'grid grid-cols-2 gap-0.5'}`}>
+                  <div 
+                    className={`${post.media_urls.length === 1 ? '' : 'grid grid-cols-2 gap-0.5'}`}
+                    dir="ltr"
+                  >
                     {post.media_urls.map((url: string, idx: number) => {
                       const isVideo = post.media_type === 'video' || url.match(/\.(mp4|webm|ogg)$/i);
                       return isVideo ? (

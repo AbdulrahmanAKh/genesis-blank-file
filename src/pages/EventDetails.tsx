@@ -31,6 +31,7 @@ import { eventsService } from "@/services/supabaseServices";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { EventGalleryDialog } from "@/components/Groups/EventGalleryDialog";
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -46,6 +47,7 @@ const EventDetails = () => {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [selectedDay, setSelectedDay] = useState(0);
   const [detailImages, setDetailImages] = useState<string[]>([]);
+  const [selectedGallery, setSelectedGallery] = useState<{ images: string[]; initialIndex: number } | null>(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -284,32 +286,37 @@ const EventDetails = () => {
           </div>
         </div>
 
-        {/* Detail Images Gallery - Show first 4 images with "+X more" overlay */}
+        {/* Detail Images Gallery - Smaller thumbnails with lightbox */}
         {event.detail_images && event.detail_images.length > 0 && (
           <div className="mb-8">
             <h3 className="text-lg font-semibold mb-4">صور الفعالية</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {event.detail_images.slice(0, 4).map((img: string, idx: number) => (
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              {event.detail_images.slice(0, 5).map((img: string, idx: number) => (
                 <div 
                   key={idx} 
                   className="relative rounded-lg overflow-hidden aspect-square cursor-pointer group"
-                  onClick={() => window.open(img, '_blank')}
+                  onClick={() => setSelectedGallery({ images: event.detail_images, initialIndex: idx })}
                 >
                   <img 
                     src={img} 
                     alt={`صورة ${idx + 1}`} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                   />
-                  {/* Show "+X more" overlay on 4th image if there are more */}
-                  {idx === 3 && event.detail_images.length > 4 && (
-                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                      <span className="text-white text-2xl font-bold">
-                        +{event.detail_images.length - 4}
-                      </span>
-                    </div>
-                  )}
                 </div>
               ))}
+              {/* Show "+X more" on 6th thumbnail if there are more than 5 images */}
+              {event.detail_images.length > 5 && (
+                <div 
+                  className="relative rounded-lg overflow-hidden aspect-square cursor-pointer group bg-muted hover:bg-muted/80 transition-colors"
+                  onClick={() => setSelectedGallery({ images: event.detail_images, initialIndex: 5 })}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-foreground text-xl font-bold">
+                      +{event.detail_images.length - 5}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -468,22 +475,23 @@ const EventDetails = () => {
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium">{review.profiles?.full_name || "مستخدم"}</h4>
+                            <h4 className="font-semibold">{review.profiles?.full_name}</h4>
                             <div className="flex items-center gap-1">
-                              {[...Array(review.rating)].map((_, i) => (
-                                <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star 
+                                  key={i} 
+                                  className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                                />
                               ))}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(review.created_at), 'PPP', { locale: ar })}
-                            </span>
                           </div>
-                          <p className="text-sm text-muted-foreground">{review.comment}</p>
+                          <p className="text-muted-foreground text-sm">{review.comment}</p>
+                          <span className="text-xs text-muted-foreground mt-2 inline-block">
+                            {format(new Date(review.created_at), 'PP', { locale: ar })}
+                          </span>
                         </div>
                       </div>
-                      {index < reviews.length - 1 && (
-                        <Separator className="mt-6" />
-                      )}
+                      {index < reviews.length - 1 && <Separator className="mt-6" />}
                     </div>
                   ))}
                 </CardContent>
@@ -494,89 +502,104 @@ const EventDetails = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Booking Card */}
-            <Card className="sticky top-6">
+            <Card className="sticky top-24">
               <CardHeader>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-primary">{event.price || 0}</span>
-                  <span className="text-muted-foreground">ريال</span>
-                  <span className="text-sm text-muted-foreground">/ شخص</span>
+                <div className="flex items-center justify-between">
+                  <CardTitle>احجز الآن</CardTitle>
+                  {event.price && event.price > 0 && (
+                    <div className="text-2xl font-bold text-primary">
+                      {event.price} ر.س
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">التاريخ:</span>
-                    <span>{format(new Date(event.start_date), 'PPP', { locale: ar })}</span>
+                {event.requires_license && (
+                  <div className="bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 mb-2">
+                      <Shield className="w-5 h-5" />
+                      <span className="font-semibold text-sm">رخصة مطلوبة</span>
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      هذه الفعالية تتطلب رخصة صالحة. ستحتاج لإرفاق الرخصة عند الحجز.
+                    </p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">الوقت:</span>
-                    <span>{format(new Date(event.start_date), 'p', { locale: ar })}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">المقاعد المتبقية:</span>
-                    <span className="font-medium text-primary">
-                      {(event.max_attendees || 0) - (event.current_attendees || 0)}
-                    </span>
-                  </div>
-                </div>
-                
-                <Separator />
+                )}
                 
                 <Button 
                   className="w-full" 
                   size="lg"
                   asChild
-                  disabled={event.status !== 'active'}
+                  disabled={event.current_attendees >= event.max_attendees}
                 >
-                  <Link 
-                    to="/checkout" 
-                    state={{
-                      eventId: event.id,
-                      eventTitle: event.title_ar || event.title,
-                      eventPrice: event.price || 0,
-                      availableSeats: (event.max_attendees || 0) - (event.current_attendees || 0)
-                    }}
-                  >
-                    {event.status === 'active' ? 'احجز الآن' : 
-                     event.status === 'draft' || event.status === 'pending' ? 'في انتظار الموافقة' :
-                     'غير متاح للحجز'}
+                  <Link to={`/checkout/${id}`}>
+                    <UserPlus className="w-4 h-4 ml-2" />
+                    {event.current_attendees >= event.max_attendees ? 'مكتملة' : 'احجز الآن'}
                   </Link>
                 </Button>
-                
-                {event.cancellation_policy && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    {event.cancellation_policy}
-                  </p>
-                )}
+
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleViewMap}
+                >
+                  <MapPin className="w-4 h-4 ml-2" />
+                  عرض على الخريطة
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Location */}
+            {/* Event Details Card */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">الموقع</CardTitle>
+                <CardTitle>تفاصيل الفعالية</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 text-primary mt-1" />
-                    <span className="text-sm">{event.location_ar || event.location}</span>
+              <CardContent className="space-y-4">
+                {event.difficulty_level && (
+                  <div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                      <Target className="w-4 h-4" />
+                      <span>مستوى الصعوبة</span>
+                    </div>
+                    <Badge className={getDifficultyColor(event.difficulty_level)}>
+                      {event.difficulty_level}
+                    </Badge>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <Clock className="w-4 h-4 text-primary mt-1" />
-                    <span className="text-sm">{format(new Date(event.start_date), 'PPPp', { locale: ar })}</span>
+                )}
+                
+                <div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Users className="w-4 h-4" />
+                    <span>عدد المشاركين</span>
                   </div>
+                  <p className="font-medium">{event.current_attendees || 0} / {event.max_attendees || 0}</p>
                 </div>
-                <Button variant="outline" className="w-full" onClick={handleViewMap}>
-                  عرض على الخريطة
-                </Button>
+
+                {event.cancellation_policy && (
+                  <div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                      <Shield className="w-4 h-4" />
+                      <span>سياسة الإلغاء</span>
+                    </div>
+                    <p className="text-sm">{event.cancellation_policy}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
-
       <Footer />
+
+      {/* Gallery Dialog */}
+      {selectedGallery && (
+        <EventGalleryDialog
+          images={selectedGallery.images}
+          initialIndex={selectedGallery.initialIndex}
+          onClose={() => setSelectedGallery(null)}
+          isRTL={true}
+        />
+      )}
     </div>
   );
 };

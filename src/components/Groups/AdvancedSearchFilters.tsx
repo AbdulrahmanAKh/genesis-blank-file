@@ -253,14 +253,14 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
 
       {/* Active Filters Display */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 max-w-2xl">
           {filters.interests.map((id) => {
             const cat = categories.find(c => c.id === id);
             return cat ? (
-              <Badge key={id} variant="secondary" className="gap-1">
+              <Badge key={id} variant="secondary" className="gap-1 text-xs py-1 px-2">
                 {isRTL ? cat.name_ar : cat.name}
                 <X
-                  className="w-3 h-3 cursor-pointer"
+                  className="w-3 h-3 cursor-pointer hover:text-destructive"
                   onClick={() => removeFilter('interest', id)}
                 />
               </Badge>
@@ -269,41 +269,51 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
           {filters.cities.map((id) => {
             const city = cities.find(c => c.id === id);
             return city ? (
-              <Badge key={id} variant="secondary" className="gap-1">
+              <Badge key={id} variant="secondary" className="gap-1 text-xs py-1 px-2">
                 {isRTL ? city.name_ar : city.name}
                 <X
-                  className="w-3 h-3 cursor-pointer"
+                  className="w-3 h-3 cursor-pointer hover:text-destructive"
                   onClick={() => removeFilter('city', id)}
                 />
               </Badge>
             ) : null;
           })}
           {filters.gender.map((g) => (
-            <Badge key={g} variant="secondary" className="gap-1">
+            <Badge key={g} variant="secondary" className="gap-1 text-xs py-1 px-2">
               {isRTL ? (g === 'male' ? 'ذكور' : g === 'female' ? 'إناث' : 'كلاهما') : g}
               <X
-                className="w-3 h-3 cursor-pointer"
+                className="w-3 h-3 cursor-pointer hover:text-destructive"
                 onClick={() => removeFilter('gender', g)}
               />
             </Badge>
           ))}
           {(filters.memberRange[0] !== 0 || filters.memberRange[1] !== 500) && (
-            <Badge variant="secondary" className="gap-1">
+            <Badge variant="secondary" className="gap-1 text-xs py-1 px-2">
               {isRTL ? 'أعضاء' : 'Members'}: {filters.memberRange[0]}-{filters.memberRange[1]}
               <X
-                className="w-3 h-3 cursor-pointer"
+                className="w-3 h-3 cursor-pointer hover:text-destructive"
                 onClick={() => removeFilter('memberRange')}
               />
             </Badge>
           )}
           {(filters.ageRange[0] !== 18 || filters.ageRange[1] !== 65) && (
-            <Badge variant="secondary" className="gap-1">
+            <Badge variant="secondary" className="gap-1 text-xs py-1 px-2">
               {isRTL ? 'عمر' : 'Age'}: {filters.ageRange[0]}-{filters.ageRange[1]}
               <X
-                className="w-3 h-3 cursor-pointer"
+                className="w-3 h-3 cursor-pointer hover:text-destructive"
                 onClick={() => removeFilter('ageRange')}
               />
             </Badge>
+          )}
+          {hasActiveFilters && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearAll} 
+              className="h-7 text-xs px-2"
+            >
+              {isRTL ? 'مسح الكل' : 'Clear All'}
+            </Button>
           )}
         </div>
       )}

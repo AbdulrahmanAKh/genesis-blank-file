@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Heart, MessageCircle, Image as ImageIcon } from 'lucide-react';
+import { Heart, MessageCircle, Image as ImageIcon, Video, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -14,7 +14,22 @@ import { CreatePostDialog } from './CreatePostDialog';
 import { EnhancedPostDetailsDialog } from './EnhancedPostDetailsDialog';
 import { PollPost } from './PollPost';
 import { ImageViewerDialog } from './ImageViewerDialog';
-import { useGroupPosts, useInvalidateGroupQueries } from '@/hooks/useGroupQueries';
+
+interface Post {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  likes_count: number;
+  comments_count: number;
+  media_urls: string[] | null;
+  media_type: string | null;
+  profiles: {
+    full_name: string;
+    avatar_url: string;
+  };
+  user_liked: boolean;
+}
 
 interface GroupPostsFeedProps {
   groupId: string;
@@ -25,21 +40,72 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
   const { user } = useAuth();
   const { language } = useLanguageContext();
   const { toast } = useToast();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('all');
-  const [selectedPost, setSelectedPost] = useState<any | null>(null);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [imageCaption, setImageCaption] = useState('');
   const isRTL = language === 'ar';
-  const invalidate = useInvalidateGroupQueries();
-
-  // Use TanStack Query hook
-  const { data: posts = [], isLoading } = useGroupPosts(groupId, user?.id);
 
   useEffect(() => {
+    loadPosts();
     const cleanup = setupRealtimeSubscription();
     return cleanup;
   }, [groupId, user]);
+
+  const loadPosts = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('group_posts')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch profiles and likes separately
+      const postsWithDetails = await Promise.all(
+        (data || []).map(async (post) => {
+          // Get profile
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, avatar_url')
+            .eq('user_id', post.user_id)
+            .maybeSingle();
+
+          // Check if user liked
+          const { data: likeData } = await supabase
+            .from('post_likes')
+            .select('id')
+            .eq('post_id', post.id)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          return {
+            ...post,
+            profiles: profileData || { full_name: '', avatar_url: '' },
+            user_liked: !!likeData
+          };
+        })
+      );
+
+      setPosts(postsWithDetails);
+    } catch (error) {
+      console.error('Error loading posts:', error);
+      toast({
+        title: isRTL ? 'خطأ' : 'Error',
+        description: isRTL ? 'فشل تحميل المنشورات' : 'Failed to load posts',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const setupRealtimeSubscription = () => {
     // Subscribe to post changes
@@ -53,7 +119,7 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
           table: 'group_posts',
           filter: `group_id=eq.${groupId}`
         },
-        () => invalidate.invalidateGroupPosts(groupId)
+        () => loadPosts()
       )
       .on(
         'postgres_changes',
@@ -63,12 +129,74 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
           table: 'group_posts',
           filter: `group_id=eq.${groupId}`
         },
-        () => invalidate.invalidateGroupPosts(groupId)
+        () => loadPosts()
+      )
+      .subscribe();
+
+    // Subscribe to likes changes for real-time updates
+    const likesChannel = supabase
+      .channel(`post-likes-${groupId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'post_likes'
+        },
+        (payload) => {
+          setPosts(currentPosts => 
+            currentPosts.map(post => {
+              if (payload.eventType === 'INSERT' && (payload.new as any).post_id === post.id) {
+                return {
+                  ...post,
+                  likes_count: post.likes_count + 1,
+                  user_liked: (payload.new as any).user_id === user?.id ? true : post.user_liked
+                };
+              }
+              if (payload.eventType === 'DELETE' && (payload.old as any).post_id === post.id) {
+                return {
+                  ...post,
+                  likes_count: Math.max(0, post.likes_count - 1),
+                  user_liked: (payload.old as any).user_id === user?.id ? false : post.user_liked
+                };
+              }
+              return post;
+            })
+          );
+        }
+      )
+      .subscribe();
+
+    // Subscribe to comments for real-time count updates
+    const commentsChannel = supabase
+      .channel(`post-comments-${groupId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'post_comments'
+        },
+        (payload) => {
+          setPosts(currentPosts =>
+            currentPosts.map(post => {
+              if (payload.eventType === 'INSERT' && (payload.new as any).post_id === post.id) {
+                return { ...post, comments_count: post.comments_count + 1 };
+              }
+              if (payload.eventType === 'DELETE' && (payload.old as any).post_id === post.id) {
+                return { ...post, comments_count: Math.max(0, post.comments_count - 1) };
+              }
+              return post;
+            })
+          );
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(postsChannel);
+      supabase.removeChannel(likesChannel);
+      supabase.removeChannel(commentsChannel);
     };
   };
 
@@ -87,24 +215,39 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
           .from('post_likes')
           .insert({ post_id: postId, user_id: user.id });
       }
-      // Invalidate to refetch
-      invalidate.invalidateGroupPosts(groupId);
+      // Real-time subscription will handle the update
     } catch (error) {
       console.error('Error toggling like:', error);
     }
   };
 
-  const filterPosts = (posts: any[]) => {
+  const filterPosts = (posts: Post[]) => {
     if (selectedTab === 'all') return posts;
-    if (selectedTab === 'text') return posts.filter(p => p.post_type === 'text' || !p.post_type);
-    if (selectedTab === 'media') return posts.filter(p => p.post_type === 'media');
-    if (selectedTab === 'polls') return posts.filter(p => p.post_type === 'poll');
+    if (selectedTab === 'text') return posts.filter((p: any) => p.post_type === 'text' || !p.post_type);
+    if (selectedTab === 'media') return posts.filter((p: any) => p.post_type === 'media');
+    if (selectedTab === 'polls') return posts.filter((p: any) => p.post_type === 'poll');
     return posts;
   };
 
-  const handlePostUpdate = () => {
-    // Invalidate posts to refetch
-    invalidate.invalidateGroupPosts(groupId);
+  const handlePostUpdate = async (postId: string) => {
+    // Optimized: only update the specific post's counts instead of reloading all posts
+    try {
+      const { data: updatedPost } = await supabase
+        .from('group_posts')
+        .select('likes_count, comments_count')
+        .eq('id', postId)
+        .single();
+
+      if (updatedPost) {
+        setPosts(prev => prev.map(p => 
+          p.id === postId 
+            ? { ...p, ...updatedPost }
+            : p
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+    }
   };
 
   const filteredPosts = filterPosts(posts);
@@ -119,7 +262,7 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
 
   return (
     <div className="space-y-4">
-      <CreatePostDialog groupId={groupId} onPostCreated={handlePostUpdate} />
+      <CreatePostDialog groupId={groupId} onPostCreated={loadPosts} />
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
@@ -170,7 +313,7 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
                 {/* Media */}
                 {post.media_urls && Array.isArray(post.media_urls) && post.media_urls.length > 0 && (
                   <div className={`${post.media_urls.length === 1 ? '' : 'grid grid-cols-2 gap-0.5'}`}>
-                    {post.media_urls.map((url: string, idx: number) => {
+                    {post.media_urls.map((url, idx) => {
                       const isVideo = post.media_type === 'video' || url.match(/\.(mp4|webm|ogg)$/i);
                       return isVideo ? (
                         <video
@@ -199,7 +342,7 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
                 )}
 
                 {/* Poll */}
-                {post.post_type === 'poll' && (
+                {(post as any).post_type === 'poll' && (
                   <div className="px-4 pb-3">
                     <PollPost postId={post.id} />
                   </div>
@@ -250,7 +393,7 @@ export const GroupPostsFeed: React.FC<GroupPostsFeedProps> = ({ groupId, userRol
           post={selectedPost}
           open={!!selectedPost}
           onClose={() => setSelectedPost(null)}
-          onUpdate={handlePostUpdate}
+          onUpdate={() => handlePostUpdate(selectedPost.id)}
           userRole={userRole}
         />
       )}

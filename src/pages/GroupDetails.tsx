@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguageContext } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,8 +13,47 @@ import { GroupDetailsHeader } from '@/components/Groups/GroupDetailsHeader';
 import { GroupEventsPreview } from '@/components/Groups/GroupEventsPreview';
 import { JoinRequestsDialog } from '@/components/Groups/JoinRequestsDialog';
 import Navbar from '@/components/Layout/Navbar';
-import { ArrowLeft } from 'lucide-react';
-import { useGroupDetails, useGroupMembers, usePendingJoinRequests, useInvalidateGroupQueries } from '@/hooks/useGroupQueries';
+import { ArrowLeft, MapPin, Users, Crown, Shield, UserPlus, Lock, Calendar, User2, Tag, Wrench } from 'lucide-react';
+
+interface GroupMember {
+  id: string;
+  user_id: string;
+  role: string;
+  is_muted: boolean;
+  joined_at: string;
+  full_name?: string;
+  avatar_url?: string;
+  profiles?: {
+    full_name?: string;
+    avatar_url?: string;
+  };
+}
+
+interface Interest {
+  id: string;
+  name: string;
+  name_ar: string;
+}
+
+interface GroupInterestWithCategory {
+  interest_id: string;
+  categories: Interest | null;
+}
+
+interface GroupInfo {
+  id: string;
+  group_name: string;
+  description?: string;
+  description_ar?: string;
+  current_members: number;
+  max_members: number;
+  created_by: string;
+  event_id?: string;
+  image_url?: string;
+  interests?: Interest[];
+  equipment?: string[];
+  city?: { name: string; name_ar: string };
+}
 
 const GroupDetails = () => {
   const { groupId } = useParams<{ groupId: string }>();
@@ -19,22 +61,106 @@ const GroupDetails = () => {
   const { language } = useLanguageContext();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [group, setGroup] = useState<GroupInfo & { visibility?: string; requires_approval?: boolean } | null>(null);
+  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [currentMember, setCurrentMember] = useState<GroupMember | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [showJoinRequestsDialog, setShowJoinRequestsDialog] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const isRTL = language === 'ar';
-  const invalidate = useInvalidateGroupQueries();
 
-  // Use TanStack Query hooks
-  const { data: group, isLoading: isLoadingGroup } = useGroupDetails(groupId);
-  const { data: members = [], isLoading: isLoadingMembers } = useGroupMembers(groupId);
-  
-  // Find current user's membership
-  const currentMember = user ? members.find(m => m.user_id === user.id) : null;
   const canManageGroup = currentMember?.role === 'owner' || currentMember?.role === 'admin';
-  
-  // Load pending requests count only if user is admin/owner
-  const { data: pendingRequestsCount = 0 } = usePendingJoinRequests(groupId, canManageGroup);
 
-  const isLoading = isLoadingGroup || isLoadingMembers;
+  useEffect(() => {
+    if (!groupId) return;
+    loadGroupData();
+  }, [groupId, user]);
+
+  useEffect(() => {
+    if (canManageGroup && groupId) {
+      loadPendingRequestsCount();
+    }
+  }, [canManageGroup, groupId]);
+
+  const loadGroupData = async () => {
+    if (!groupId) return;
+
+    try {
+      setIsLoading(true);
+
+      // Load group info
+      const { data: groupData, error: groupError } = await supabase
+        .from('event_groups')
+        .select('*, visibility, requires_approval, description, description_ar, equipment, cities(name, name_ar)')
+        .eq('id', groupId)
+        .single();
+
+      if (groupError) throw groupError;
+
+      // Load group interests with JOIN instead of N+1 queries
+      const { data: interestsData } = await supabase
+        .from('group_interests')
+        .select(`
+          interest_id,
+          categories:interest_id (
+            id,
+            name,
+            name_ar
+          )
+        `)
+        .eq('group_id', groupId);
+
+      // Map to Interest array
+      const interests: Interest[] = ((interestsData as GroupInterestWithCategory[]) || [])
+        .map(item => item.categories)
+        .filter((cat): cat is Interest => cat !== null);
+
+      setGroup({ 
+        ...groupData, 
+        interests,
+        city: groupData.cities 
+      });
+
+      // Load members with profiles using JOIN instead of N+1 queries
+      const { data: membersData, error: membersError } = await supabase
+        .from('group_members')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('group_id', groupId);
+
+      if (membersError) throw membersError;
+
+      // Map to include profile data
+      const membersWithNames = (membersData || []).map(member => ({
+        ...member,
+        full_name: member.profiles?.full_name || 'مستخدم',
+        avatar_url: member.profiles?.avatar_url
+      }));
+
+      setMembers(membersWithNames);
+
+      // Find current user's membership (only if logged in)
+      if (user) {
+        const myMembership = membersWithNames.find(m => m.user_id === user.id);
+        setCurrentMember(myMembership || null);
+      }
+
+    } catch (error) {
+      console.error('Error loading group data:', error);
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء تحميل بيانات المجموعة',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLeaveGroup = async () => {
     if (!currentMember || !user) return;
@@ -71,11 +197,94 @@ const GroupDetails = () => {
     }
   };
 
-  const handleMembershipChange = () => {
-    // Invalidate relevant queries
-    invalidate.invalidateGroupDetails(groupId!);
-    invalidate.invalidateGroupMembers(groupId!);
-    invalidate.invalidatePendingRequests(groupId!);
+  const handleToggleMute = async () => {
+    if (!currentMember) return;
+
+    try {
+      const newMutedState = !currentMember.is_muted;
+      
+      const { error } = await supabase
+        .from('group_members')
+        .update({ is_muted: newMutedState })
+        .eq('id', currentMember.id);
+
+      if (error) throw error;
+
+      // Optimistic update instead of full refetch
+      setCurrentMember(prev => prev ? { ...prev, is_muted: newMutedState } : null);
+
+      toast({
+        title: 'تم بنجاح',
+        description: newMutedState ? 'تم كتم الإشعارات' : 'تم إلغاء الكتم'
+      });
+    } catch (error) {
+      console.error('Error toggling mute:', error);
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء تحديث الإعدادات',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleMembershipChange = async () => {
+    // Optimized: only refetch what changed instead of full reload
+    if (!groupId) return;
+    
+    try {
+      // Update member count and check current membership
+      const [groupResult, memberResult] = await Promise.all([
+        supabase
+          .from('event_groups')
+          .select('current_members')
+          .eq('id', groupId)
+          .single(),
+        user ? supabase
+          .from('group_members')
+          .select('*, profiles!group_members_user_id_fkey(full_name, avatar_url)')
+          .eq('group_id', groupId)
+          .eq('user_id', user.id)
+          .maybeSingle() : Promise.resolve({ data: null, error: null })
+      ]);
+
+      // Update group member count optimistically
+      if (groupResult.data && group) {
+        setGroup(prev => prev ? { ...prev, current_members: groupResult.data.current_members } : null);
+      }
+
+      // Update current member status
+      if (memberResult.data) {
+        const memberWithProfile = {
+          ...memberResult.data,
+          full_name: memberResult.data.profiles?.full_name,
+          avatar_url: memberResult.data.profiles?.avatar_url
+        };
+        setCurrentMember(memberWithProfile);
+      } else {
+        setCurrentMember(null);
+      }
+
+      // Reload pending requests count if admin
+      if (canManageGroup) {
+        loadPendingRequestsCount();
+      }
+    } catch (error) {
+      console.error('Error updating membership:', error);
+      // Fallback to full reload on error
+      loadGroupData();
+    }
+  };
+
+  const loadPendingRequestsCount = async () => {
+    if (!groupId) return;
+    
+    const { count } = await supabase
+      .from('group_join_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId)
+      .eq('status', 'pending');
+    
+    setPendingRequestsCount(count || 0);
   };
 
   if (isLoading) {
@@ -121,7 +330,7 @@ const GroupDetails = () => {
         </Button>
 
         <div className="space-y-6">
-          {/* Header */}
+          {/* Unified Header Block - Header, Leaderboard, and Members merged */}
           <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
             <GroupDetailsHeader
               groupId={group.id}
@@ -140,18 +349,21 @@ const GroupDetails = () => {
             />
           </div>
 
-          {/* Only show group content to members */}
-          {currentMember && (
-            <>
-              {/* Join Requests Dialog */}
-              <JoinRequestsDialog
-                groupId={group.id}
-                open={showJoinRequestsDialog}
-                onClose={() => setShowJoinRequestsDialog(false)}
-                onRequestHandled={handleMembershipChange}
-              />
+      {/* Only show group content to members */}
+      {currentMember && (
+        <>
+          {/* Join Requests Dialog */}
+          <JoinRequestsDialog
+            groupId={group.id}
+            open={showJoinRequestsDialog}
+            onClose={() => setShowJoinRequestsDialog(false)}
+            onRequestHandled={() => {
+              handleMembershipChange();
+              loadPendingRequestsCount();
+            }}
+          />
 
-              {/* Events Preview */}
+          {/* Events Preview */}
               <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                 <GroupEventsPreview groupId={group.id} />
               </div>
@@ -169,8 +381,365 @@ const GroupDetails = () => {
               </div>
             </>
           )}
+
+          {/* Non-members detailed view */}
+          {!currentMember && group && (
+            <NonMemberGroupView 
+              group={group} 
+              members={members}
+              isRTL={isRTL}
+              onMembershipChange={handleMembershipChange}
+            />
+          )}
         </div>
       </main>
+    </div>
+  );
+};
+
+// Non-member view component
+const NonMemberGroupView: React.FC<{
+  group: GroupInfo & { visibility?: string; requires_approval?: boolean };
+  members: GroupMember[];
+  isRTL: boolean;
+  onMembershipChange: () => void;
+}> = ({ group, members, isRTL, onMembershipChange }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isJoining, setIsJoining] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  
+  const owner = members.find(m => m.role === 'owner');
+  const admins = members.filter(m => m.role === 'admin');
+  const previewMembers = members.slice(0, 8);
+
+  useEffect(() => {
+    if (user && group.requires_approval) {
+      checkPendingRequest();
+    }
+  }, [user, group.id, group.requires_approval]);
+
+  const checkPendingRequest = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('group_join_requests')
+      .select('id')
+      .eq('group_id', group.id)
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .maybeSingle();
+    
+    setHasPendingRequest(!!data);
+  };
+  
+  const handleJoinGroup = async () => {
+    if (!user) {
+      toast({
+        title: isRTL ? 'خطأ' : 'Error',
+        description: isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (hasPendingRequest) {
+      toast({
+        title: isRTL ? 'تنبيه' : 'Notice',
+        description: isRTL ? 'لديك طلب انضمام قيد المراجعة' : 'You already have a pending join request',
+        variant: 'default'
+      });
+      return;
+    }
+
+    try {
+      setIsJoining(true);
+
+      if (group.requires_approval) {
+        // Check for existing request
+        const { data: existingRequest } = await supabase
+          .from('group_join_requests')
+          .select('id, status')
+          .eq('group_id', group.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (existingRequest) {
+          // Reactivate the request
+          const { error } = await supabase
+            .from('group_join_requests')
+            .update({ 
+              status: 'pending', 
+              reviewed_at: null, 
+              created_at: new Date().toISOString() 
+            })
+            .eq('id', existingRequest.id);
+
+          if (error) throw error;
+        } else {
+          // Create new request
+          const { error } = await supabase
+            .from('group_join_requests')
+            .insert({
+              group_id: group.id,
+              user_id: user.id
+            });
+
+          if (error) throw error;
+        }
+
+        setHasPendingRequest(true);
+
+        toast({
+          title: isRTL ? 'تم الإرسال' : 'Request Sent',
+          description: isRTL ? 'تم إرسال طلب الانضمام للمسؤولين' : 'Join request sent to admins'
+        });
+      } else {
+        const { error } = await supabase
+          .from('group_members')
+          .insert({
+            group_id: group.id,
+            user_id: user.id,
+            role: 'member'
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: isRTL ? 'تم الانضمام' : 'Joined',
+          description: isRTL ? 'تم الانضمام للمجموعة بنجاح' : 'Successfully joined the group'
+        });
+
+        onMembershipChange();
+      }
+    } catch (error) {
+      console.error('Error joining group:', error);
+      toast({
+        title: isRTL ? 'خطأ' : 'Error',
+        description: isRTL ? 'فشل الانضمام للمجموعة' : 'Failed to join group',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Group Description */}
+      {(group.description || group.description_ar) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              {isRTL ? 'نبذة عن المجموعة' : 'About the Group'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">
+              {isRTL ? group.description_ar || group.description : group.description}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Group Info Grid */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Location & Members Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" />
+              {isRTL ? 'معلومات المجموعة' : 'Group Info'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <MapPin className="w-4 h-4 text-muted-foreground" />
+              <span>
+                {isRTL ? 'السعودية' : 'Saudi Arabia'}
+                {group.city && `, ${isRTL ? group.city.name_ar : group.city.name}`}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <span>
+                {group.current_members} / {group.max_members} {isRTL ? 'عضو' : 'members'}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {group.visibility === 'private' ? (
+                <Lock className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <Users className="w-4 h-4 text-muted-foreground" />
+              )}
+              <Badge variant="outline">
+                {group.visibility === 'public' 
+                  ? (isRTL ? 'مجموعة عامة' : 'Public Group')
+                  : (isRTL ? 'مجموعة خاصة' : 'Private Group')}
+              </Badge>
+            </div>
+            {group.requires_approval && (
+              <div className="flex items-center gap-3 text-amber-600">
+                <Shield className="w-4 h-4" />
+                <span className="text-sm">
+                  {isRTL ? 'تحتاج موافقة للانضمام' : 'Requires approval to join'}
+                </span>
+              </div>
+            )}
+            {group.equipment && group.equipment.length > 0 && (
+              <div className="space-y-2 pt-3 border-t">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Wrench className="w-4 h-4" />
+                  <span className="text-sm font-semibold">
+                    {isRTL ? 'المعدات المطلوبة' : 'Required Equipment'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {group.equipment.map((item, index) => (
+                    <Badge key={index} variant="outline">
+                      {item}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {group.interests && group.interests.length > 0 && (
+              <div className="space-y-2 pt-3 border-t">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Tag className="w-4 h-4" />
+                  <span className="text-sm font-semibold">
+                    {isRTL ? 'الاهتمامات' : 'Interests'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {group.interests.map((interest) => (
+                    <Badge key={interest.id} variant="secondary">
+                      {isRTL ? interest.name_ar : interest.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Owner & Admins */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Crown className="w-5 h-5 text-yellow-500" />
+              {isRTL ? 'مسؤولو المجموعة' : 'Group Managers'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Owner */}
+            {owner && (
+              <div className="flex items-center gap-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={owner.avatar_url} />
+                  <AvatarFallback>{owner.full_name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="font-semibold flex items-center gap-2">
+                    {owner.full_name}
+                    <Crown className="w-4 h-4 text-yellow-500" />
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {isRTL ? 'مالك المجموعة' : 'Group Owner'}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Admins */}
+            {admins.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground mb-2">
+                  {isRTL ? 'المشرفون' : 'Admins'}
+                </p>
+                {admins.map(admin => (
+                  <div key={admin.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={admin.avatar_url} />
+                      <AvatarFallback>{admin.full_name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm flex items-center gap-2">
+                        {admin.full_name}
+                        <Shield className="w-3 h-3 text-blue-500" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Members Preview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" />
+            {isRTL ? 'أعضاء المجموعة' : 'Group Members'}
+            <Badge variant="secondary" className="mr-2">{group.current_members}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            {previewMembers.map(member => (
+              <div key={member.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={member.avatar_url} />
+                  <AvatarFallback>{member.full_name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium">{member.full_name}</span>
+                {member.role === 'owner' && <Crown className="w-3 h-3 text-yellow-500" />}
+                {member.role === 'admin' && <Shield className="w-3 h-3 text-blue-500" />}
+              </div>
+            ))}
+            {members.length > 8 && (
+              <div className="flex items-center justify-center p-2 bg-muted rounded-lg min-w-[80px]">
+                <span className="text-sm text-muted-foreground">
+                  +{members.length - 8} {isRTL ? 'آخرين' : 'more'}
+                </span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Join Button */}
+      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+        <CardContent className="py-8">
+          <div className="text-center space-y-4">
+            <h3 className="text-xl font-bold">
+              {isRTL ? 'انضم إلى هذه المجموعة' : 'Join this Group'}
+            </h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              {isRTL 
+                ? 'انضم للمجموعة للوصول إلى المحتوى والفعاليات والمشاركة مع الأعضاء'
+                : 'Join the group to access content, events, and participate with members'}
+            </p>
+            <Button
+              size="lg"
+              onClick={handleJoinGroup}
+              disabled={isJoining || hasPendingRequest}
+              className="gap-2 min-w-[200px]"
+            >
+              <UserPlus className="w-5 h-5" />
+              {hasPendingRequest
+                ? (isRTL ? 'تم الإرسال!' : 'Request Sent!')
+                : isJoining
+                ? (isRTL ? 'جاري الانضمام...' : 'Joining...')
+                : group.requires_approval
+                ? (isRTL ? 'طلب الانضمام' : 'Request to Join')
+                : (isRTL ? 'انضم الآن' : 'Join Now')}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

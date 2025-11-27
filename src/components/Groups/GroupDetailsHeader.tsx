@@ -10,6 +10,7 @@ import { useLanguageContext } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { GroupSettingsDialog } from './GroupSettingsDialog';
+import { useGroupLeaderboard, useGroupMembers, useGroupDetails, useInvalidateGroupQueries } from '@/hooks/useGroupQueries';
 
 interface Interest {
   id: string;
@@ -68,54 +69,29 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const isRTL = language === 'ar';
-  const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [isLoadingLeaders, setIsLoadingLeaders] = useState(true);
-  const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
-  const [groupCity, setGroupCity] = useState<{ name: string; name_ar: string } | null>(null);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
-  const [equipment, setEquipment] = useState<string[]>([]);
+  const invalidate = useInvalidateGroupQueries();
 
   const canManageGroup = memberRole === 'owner' || memberRole === 'admin';
 
   const defaultThumbnail = 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&h=400&fit=crop';
 
+  // Use TanStack Query hooks
+  const { data: leaders = [], isLoading: isLoadingLeaders } = useGroupLeaderboard(groupId);
+  const { data: members = [], isLoading: isLoadingMembers } = useGroupMembers(groupId);
+  const { data: groupDetails } = useGroupDetails(groupId);
+
+  const groupCity = groupDetails?.cities || null;
+  const equipment = groupDetails?.equipment || [];
+
   useEffect(() => {
-    loadLeaderboard();
-    loadMembers();
-    loadGroupCity();
-    loadGroupEquipment();
     if (user && requiresApproval && !isMember) {
       checkPendingRequest();
     }
   }, [groupId, user, requiresApproval, isMember]);
-
-  const loadGroupCity = async () => {
-    const { data } = await supabase
-      .from('event_groups')
-      .select('cities(name, name_ar)')
-      .eq('id', groupId)
-      .single();
-    
-    if (data?.cities) {
-      setGroupCity(data.cities);
-    }
-  };
-
-  const loadGroupEquipment = async () => {
-    const { data } = await supabase
-      .from('event_groups')
-      .select('equipment')
-      .eq('id', groupId)
-      .single();
-    
-    if (data?.equipment) {
-      setEquipment(data.equipment);
-    }
-  };
 
   const checkPendingRequest = async () => {
     if (!user) return;
@@ -131,93 +107,11 @@ export const GroupDetailsHeader: React.FC<GroupDetailsHeaderProps> = ({
     setHasPendingRequest(!!data);
   };
 
-  const loadLeaderboard = async () => {
-    try {
-      setIsLoadingLeaders(true);
-
-      const { data: posts, error } = await supabase
-        .from('group_posts')
-        .select('user_id')
-        .eq('group_id', groupId);
-
-      if (error) throw error;
-
-      const postCounts = (posts || []).reduce((acc: any, post) => {
-        acc[post.user_id] = (acc[post.user_id] || 0) + 1;
-        return acc;
-      }, {});
-
-      const topUsers = Object.entries(postCounts)
-        .sort(([, a]: any, [, b]: any) => b - a)
-        .map(([userId, count]: any) => ({ user_id: userId, posts_count: count }));
-
-      const leaderboardData = await Promise.all(
-        topUsers.map(async (user, index) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('user_id', user.user_id)
-            .maybeSingle();
-
-          return {
-            ...user,
-            full_name: profile?.full_name || (isRTL ? 'مستخدم' : 'User'),
-            avatar_url: profile?.avatar_url || '',
-            rank: index + 1
-          };
-        })
-      );
-
-      setLeaders(leaderboardData);
-    } catch (error) {
-      console.error('Error loading leaderboard:', error);
-    } finally {
-      setIsLoadingLeaders(false);
-    }
-  };
-
-  const loadMembers = async () => {
-    try {
-      setIsLoadingMembers(true);
-
-      const { data, error } = await supabase
-        .from('group_members')
-        .select('id, user_id, role')
-        .eq('group_id', groupId)
-        .limit(10);
-
-      if (error) throw error;
-
-      const membersWithProfiles = await Promise.all(
-        (data || []).map(async (member) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('user_id', member.user_id)
-            .maybeSingle();
-
-          return {
-            ...member,
-            full_name: profile?.full_name || (isRTL ? 'مستخدم' : 'User'),
-            avatar_url: profile?.avatar_url || '',
-            role: member.role
-          };
-        })
-      );
-
-      // Sort to show owner first, then admins, then members
-      membersWithProfiles.sort((a, b) => {
-        const roleOrder = { owner: 0, admin: 1, member: 2 };
-        return (roleOrder[a.role as keyof typeof roleOrder] || 2) - (roleOrder[b.role as keyof typeof roleOrder] || 2);
-      });
-
-      setMembers(membersWithProfiles);
-    } catch (error) {
-      console.error('Error loading members:', error);
-    } finally {
-      setIsLoadingMembers(false);
-    }
-  };
+  // Sort members to show owner first, then admins, then members
+  const sortedMembers = [...members].sort((a, b) => {
+    const roleOrder = { owner: 0, admin: 1, member: 2 };
+    return (roleOrder[a.role as keyof typeof roleOrder] || 2) - (roleOrder[b.role as keyof typeof roleOrder] || 2);
+  });
 
   const getRankCircle = (rank: number) => {
     const colors = {

@@ -19,6 +19,12 @@ interface AdminOverviewTabProps {
     activeBookings: number;
     totalCategories: number;
     pendingReviews: number;
+    dauMau: number;
+    userChurn: number;
+    arpu: number;
+    bookingConversion: number;
+    pendingVerifications: number;
+    openSupportTickets: number;
   };
   loading: boolean;
 }
@@ -28,53 +34,74 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({ stats, loadi
 
   const statsCards = [
     {
-      title: t('adminPanel.stats.totalUsers'),
+      title: t('admin.kpis.totalUsers'),
       value: stats.totalUsers,
       change: stats.userGrowth,
       icon: Users,
       color: 'text-blue-500'
     },
     {
-      title: t('adminPanel.stats.totalEvents'),
-      value: stats.totalEvents,
-      change: stats.eventGrowth,
-      icon: Calendar,
+      title: t('admin.kpis.dauMau'),
+      value: `${(stats.dauMau * 100).toFixed(1)}%`,
+      change: '',
+      icon: Activity,
+      color: 'text-cyan-500'
+    },
+    {
+      title: t('admin.kpis.userChurn'),
+      value: `${stats.userChurn.toFixed(1)}%`,
+      change: '',
+      icon: TrendingUp,
+      color: 'text-red-500'
+    },
+    {
+      title: t('admin.kpis.totalRevenue'),
+      value: `${stats.totalRevenue.toFixed(0)} ${language === 'ar' ? 'ر.س' : 'SAR'}`,
+      change: stats.revenueGrowth,
+      icon: DollarSign,
       color: 'text-green-500'
     },
     {
-      title: t('adminPanel.stats.totalServices'),
-      value: stats.totalServices,
-      change: '+0%',
-      icon: FileText,
+      title: t('admin.kpis.arpu'),
+      value: `${stats.arpu.toFixed(0)} ${language === 'ar' ? 'ر.س' : 'SAR'}`,
+      change: '',
+      icon: BarChart3,
       color: 'text-purple-500'
     },
     {
-      title: t('adminPanel.stats.totalRevenue'),
-      value: `${stats.totalRevenue} ${language === 'ar' ? 'ر.س' : 'SAR'}`,
-      change: stats.revenueGrowth,
-      icon: DollarSign,
+      title: t('admin.kpis.bookings'),
+      value: stats.activeBookings,
+      change: '',
+      icon: Calendar,
       color: 'text-orange-500'
     },
     {
-      title: t('adminPanel.stats.activeBookings'),
-      value: stats.activeBookings,
-      change: '+0%',
+      title: t('admin.kpis.bookingConversion'),
+      value: `${stats.bookingConversion.toFixed(1)}%`,
+      change: '',
       icon: CheckCircle,
       color: 'text-teal-500'
     },
     {
-      title: t('adminPanel.stats.pendingReviews'),
-      value: stats.pendingReviews,
+      title: t('admin.kpis.pendingVerifications'),
+      value: stats.pendingVerifications,
       change: '',
       icon: AlertTriangle,
-      color: 'text-red-500'
+      color: 'text-yellow-500'
+    },
+    {
+      title: t('admin.kpis.openTickets'),
+      value: stats.openSupportTickets,
+      change: '',
+      icon: FileText,
+      color: 'text-pink-500'
     }
   ];
 
   if (loading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(6)].map((_, i) => (
+        {[...Array(9)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardHeader className="h-32 bg-muted"></CardHeader>
           </Card>

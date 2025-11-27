@@ -19,7 +19,7 @@ import { iconMap } from '@/components/Home/CategorySection';
 interface CategoryDialogProps {
   onSuccess?: () => void;
   category?: any;
-  type?: 'event' | 'service';
+  type?: 'event' | 'service' | 'interest';
 }
 
 export const CategoryDialog = ({ onSuccess, category, type = 'service' }: CategoryDialogProps) => {
@@ -61,7 +61,7 @@ export const CategoryDialog = ({ onSuccess, category, type = 'service' }: Catego
     setLoading(true);
 
     try {
-      const tableName = type === 'service' ? 'service_categories' : 'categories';
+      const tableName = type === 'service' ? 'service_categories' : type === 'interest' ? 'user_interests' : 'categories';
       
       if (category) {
         const { error } = await supabase

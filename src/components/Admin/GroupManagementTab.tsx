@@ -249,13 +249,7 @@ export const GroupManagementTab = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="event" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="event">مجموعات الفعاليات</TabsTrigger>
-            <TabsTrigger value="regional">المجموعات الإقليمية</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="event" className="space-y-4">
+        <div className="space-y-4">
             {loading ? (
               <div className="text-center py-8">جاري التحميل...</div>
             ) : eventGroups.length === 0 ? (
@@ -324,73 +318,7 @@ export const GroupManagementTab = () => {
                 </TableBody>
               </Table>
             )}
-          </TabsContent>
-
-          <TabsContent value="regional" className="space-y-4">
-            {loading ? (
-              <div className="text-center py-8">جاري التحميل...</div>
-            ) : regionalGroups.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                لا توجد مجموعات إقليمية
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>اسم المجموعة</TableHead>
-                    <TableHead>الأعضاء</TableHead>
-                    <TableHead>الحالة</TableHead>
-                    <TableHead>الإجراءات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {regionalGroups.map((group) => (
-                    <TableRow key={group.id}>
-                      <TableCell className="font-medium">{group.group_name}</TableCell>
-                      <TableCell>
-                        {group.current_members} / {group.max_members}
-                      </TableCell>
-                      <TableCell>
-                        {group.archived_at ? (
-                          <Badge variant="secondary">مؤرشف</Badge>
-                        ) : (
-                          <Badge variant="default">نشط</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewMembers(group)}
-                          >
-                            <Users className="w-4 h-4" />
-                          </Button>
-                          {!group.archived_at && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleArchiveGroup(group.id)}
-                            >
-                              <Archive className="w-4 h-4" />
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteGroup(group.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </TabsContent>
-        </Tabs>
+        </div>
 
         {/* Members Dialog */}
         <Dialog open={showMembersDialog} onOpenChange={setShowMembersDialog}>

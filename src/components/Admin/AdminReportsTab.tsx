@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
+import { useLanguageContext } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Download, FileText, Calendar, DollarSign, Users, TrendingUp } from 'lucide-react';
@@ -27,23 +28,8 @@ interface ReportData {
 }
 
 export const AdminReportsTab = () => {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { t, language } = useLanguageContext();
   const [reportPeriod, setReportPeriod] = useState<ReportPeriod>('monthly');
-  const [reportData, setReportData] = useState<ReportData[]>([]);
-  const [summaryStats, setSummaryStats] = useState({
-    totalUsers: 0,
-    totalEvents: 0,
-    totalServices: 0,
-    totalRevenue: 0,
-    totalBookings: 0
-  });
-
-  useEffect(() => {
-    if (user) {
-      fetchReportData();
-    }
-  }, [user, reportPeriod]);
 
   const getPeriodDates = (period: ReportPeriod): { start: Date; end: Date }[] => {
     const now = new Date();
@@ -104,127 +90,72 @@ export const AdminReportsTab = () => {
     return periods;
   };
 
-  const fetchReportData = async () => {
-    setLoading(true);
-    try {
+  const { data: reportData = [], isLoading } = useQuery({
+    queryKey: ['admin-reports', reportPeriod],
+    queryFn: async () => {
       const periods = getPeriodDates(reportPeriod);
       const data: ReportData[] = [];
-      
-      let totalUsers = 0;
-      let totalEvents = 0;
-      let totalServices = 0;
-      let totalRevenue = 0;
-      let totalBookings = 0;
 
-      for (const period of periods) {
+      // Batch fetch all data in parallel
+      const periodPromises = periods.map(async (period) => {
         const startDate = period.start.toISOString();
         const endDate = period.end.toISOString();
 
-        // Fetch users
-        const { count: usersCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true });
+        // Parallel queries for each period
+        const [usersCount, newUsersCount, eventsResult, servicesResult, bookingsResult, refundsResult] = await Promise.all([
+          supabase.from('profiles').select('*', { count: 'exact', head: true }),
+          supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', startDate).lte('created_at', endDate),
+          supabase.from('events').select('id, status', { count: 'exact' }).gte('created_at', startDate).lte('created_at', endDate),
+          supabase.from('services').select('id, status', { count: 'exact' }).gte('created_at', startDate).lte('created_at', endDate),
+          supabase.from('bookings').select('total_amount', { count: 'exact' }).eq('status', 'confirmed').gte('created_at', startDate).lte('created_at', endDate),
+          supabase.from('refunds').select('amount').eq('status', 'completed').gte('created_at', startDate).lte('created_at', endDate)
+        ]);
 
-        const { count: newUsersCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
-
-        // Fetch events
-        const { count: eventsCount } = await supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
-
-        const { count: approvedEventsCount } = await supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'approved')
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
-
-        // Fetch services
-        const { count: servicesCount } = await supabase
-          .from('services')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
-
-        const { count: approvedServicesCount } = await supabase
-          .from('services')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'approved')
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
-
-        // Fetch bookings
-        const { data: bookingsData, count: bookingsCount } = await supabase
-          .from('bookings')
-          .select('total_amount', { count: 'exact' })
-          .eq('status', 'confirmed')
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
-
-        const revenue = bookingsData?.reduce((sum, b) => sum + Number(b.total_amount || 0), 0) || 0;
-
-        // Fetch refunds
-        const { data: refundsData } = await supabase
-          .from('refunds')
-          .select('amount')
-          .eq('status', 'completed')
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
-
-        const refunds = refundsData?.reduce((sum, r) => sum + Number(r.amount || 0), 0) || 0;
+        const approvedEvents = eventsResult.data?.filter(e => e.status === 'approved').length || 0;
+        const approvedServices = servicesResult.data?.filter(s => s.status === 'approved').length || 0;
+        const revenue = bookingsResult.data?.reduce((sum, b) => sum + Number(b.total_amount || 0), 0) || 0;
+        const refunds = refundsResult.data?.reduce((sum, r) => sum + Number(r.amount || 0), 0) || 0;
 
         const periodLabel = format(period.start, 
           reportPeriod === 'daily' ? 'yyyy-MM-dd' :
-          reportPeriod === 'weekly' ? "'أسبوع' w yyyy" :
-          reportPeriod === 'monthly' ? 'MMMM yyyy' :
-          'yyyy',
-          { locale: ar }
+          reportPeriod === 'weekly' ? (language === 'ar' ? "'أسبوع' w yyyy" : "'Week' w yyyy") :
+          reportPeriod === 'monthly' ? 'MMMM yyyy' : 'yyyy',
+          { locale: language === 'ar' ? ar : undefined }
         );
 
-        data.push({
+        return {
           period: periodLabel,
-          totalUsers: usersCount || 0,
-          newUsers: newUsersCount || 0,
-          totalEvents: eventsCount || 0,
-          approvedEvents: approvedEventsCount || 0,
-          totalServices: servicesCount || 0,
-          approvedServices: approvedServicesCount || 0,
-          totalBookings: bookingsCount || 0,
+          totalUsers: usersCount.count || 0,
+          newUsers: newUsersCount.count || 0,
+          totalEvents: eventsResult.count || 0,
+          approvedEvents,
+          totalServices: servicesResult.count || 0,
+          approvedServices,
+          totalBookings: bookingsResult.count || 0,
           totalRevenue: revenue,
           totalRefunds: refunds
-        });
-
-        totalUsers = usersCount || 0;
-        totalEvents += eventsCount || 0;
-        totalServices += servicesCount || 0;
-        totalRevenue += revenue;
-        totalBookings += bookingsCount || 0;
-      }
-
-      setReportData(data);
-      setSummaryStats({
-        totalUsers,
-        totalEvents,
-        totalServices,
-        totalRevenue,
-        totalBookings
+        };
       });
-    } catch (error) {
-      console.error('Error fetching report data:', error);
-      toast.error('حدث خطأ في جلب البيانات');
-    } finally {
-      setLoading(false);
-    }
+
+      const results = await Promise.all(periodPromises);
+      return results.reverse(); // Most recent first
+    },
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
+
+  const summaryStats = {
+    totalUsers: reportData[0]?.totalUsers || 0,
+    totalEvents: reportData.reduce((sum, r) => sum + r.totalEvents, 0),
+    totalServices: reportData.reduce((sum, r) => sum + r.totalServices, 0),
+    totalRevenue: reportData.reduce((sum, r) => sum + r.totalRevenue, 0),
+    totalBookings: reportData.reduce((sum, r) => sum + r.totalBookings, 0)
   };
 
   const downloadCSV = () => {
-    const headers = ['الفترة', 'إجمالي المستخدمين', 'مستخدمين جدد', 'إجمالي الفعاليات', 'فعاليات مقبولة', 'إجمالي الخدمات', 'خدمات مقبولة', 'الحجوزات', 'الإيرادات', 'المبالغ المستردة'];
+    const headers = language === 'ar' 
+      ? ['الفترة', 'إجمالي المستخدمين', 'مستخدمين جدد', 'إجمالي الفعاليات', 'فعاليات مقبولة', 'إجمالي الخدمات', 'خدمات مقبولة', 'الحجوزات', 'الإيرادات', 'المبالغ المستردة']
+      : ['Period', 'Total Users', 'New Users', 'Total Events', 'Approved Events', 'Total Services', 'Approved Services', 'Bookings', 'Revenue', 'Refunds'];
+    
     const rows = reportData.map(row => [
       row.period,
       row.totalUsers,
@@ -234,8 +165,8 @@ export const AdminReportsTab = () => {
       row.totalServices,
       row.approvedServices,
       row.totalBookings,
-      `${row.totalRevenue.toFixed(2)} ر.س`,
-      `${row.totalRefunds.toFixed(2)} ر.س`
+      `${row.totalRevenue.toFixed(2)} ${language === 'ar' ? 'ر.س' : 'SAR'}`,
+      `${row.totalRefunds.toFixed(2)} ${language === 'ar' ? 'ر.س' : 'SAR'}`
     ]);
 
     const csvContent = [
@@ -248,7 +179,7 @@ export const AdminReportsTab = () => {
     link.href = URL.createObjectURL(blob);
     link.download = `admin-report-${reportPeriod}-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
-    toast.success('تم تحميل التقرير بنجاح');
+    toast.success(t('admin.reports.downloadSuccess'));
   };
 
   return (
@@ -260,10 +191,10 @@ export const AdminReportsTab = () => {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                التقارير الإدارية
+                {t('admin.reports.title')}
               </CardTitle>
               <CardDescription>
-                تقارير شاملة عن أداء المنصة
+                {t('admin.reports.description')}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -272,15 +203,15 @@ export const AdminReportsTab = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">يومي (آخر 30 يوم)</SelectItem>
-                  <SelectItem value="weekly">أسبوعي (آخر 12 أسبوع)</SelectItem>
-                  <SelectItem value="monthly">شهري (آخر 12 شهر)</SelectItem>
-                  <SelectItem value="yearly">سنوي (آخر 5 سنوات)</SelectItem>
+                  <SelectItem value="daily">{t('admin.reports.daily')}</SelectItem>
+                  <SelectItem value="weekly">{t('admin.reports.weekly')}</SelectItem>
+                  <SelectItem value="monthly">{t('admin.reports.monthly')}</SelectItem>
+                  <SelectItem value="yearly">{t('admin.reports.yearly')}</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={downloadCSV} variant="outline" disabled={loading || reportData.length === 0}>
+              <Button onClick={downloadCSV} variant="outline" disabled={isLoading || reportData.length === 0}>
                 <Download className="h-4 w-4 mr-2" />
-                تحميل CSV
+                {t('admin.reports.downloadCsv')}
               </Button>
             </div>
           </div>
@@ -356,13 +287,13 @@ export const AdminReportsTab = () => {
           <CardTitle>تقرير مفصل - {reportPeriod === 'daily' ? 'يومي' : reportPeriod === 'weekly' ? 'أسبوعي' : reportPeriod === 'monthly' ? 'شهري' : 'سنوي'}</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : reportData.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              لا توجد بيانات للعرض
+              {t('common.noData')}
             </div>
           ) : (
             <div className="overflow-x-auto">

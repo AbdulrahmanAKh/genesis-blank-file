@@ -1,221 +1,186 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import Navbar from '@/components/Layout/Navbar';
-import Footer from '@/components/Layout/Footer';
+import { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguageContext } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import Navbar from '@/components/Layout/Navbar';
+import Footer from '@/components/Layout/Footer';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send, MessageCircle, Search, Circle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  MessageSquare, 
+  Users, 
+  GraduationCap, 
+  HelpCircle,
+  ChevronRight,
+  Loader2,
+  Calendar,
+  Send,
+  ArrowLeft,
+  Clock,
+  CheckCircle2,
+  Search,
+  MessageCircle
+} from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTicketMessages, useSendTicketMessage } from '@/hooks/useTickets';
 import { toast } from 'sonner';
 
-interface Conversation {
-  id: string;
-  participant_1: string;
-  participant_2: string;
-  last_message_at: string | null;
-  other_user: {
-    user_id: string;
-    full_name: string | null;
-    avatar_url: string | null;
-    display_id: string;
-  };
-  last_message?: {
-    content: string;
-    sender_id: string;
-  };
-  unread_count?: number;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  sender_id: string;
-  created_at: string;
-  read_at: string | null;
-}
+// Status color config
+const statusConfig: Record<string, { 
+  color: string; 
+  bgColor: string; 
+  label: string; 
+  labelAr: string;
+  icon: React.ReactNode;
+}> = {
+  open: { 
+    color: 'text-blue-600', 
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30 border-blue-300', 
+    label: 'Open', 
+    labelAr: 'مفتوح',
+    icon: <Clock className="w-3 h-3" />
+  },
+  replied: { 
+    color: 'text-green-600', 
+    bgColor: 'bg-green-100 dark:bg-green-900/30 border-green-300', 
+    label: 'Replied', 
+    labelAr: 'تم الرد',
+    icon: <MessageSquare className="w-3 h-3" />
+  },
+  resolved: { 
+    color: 'text-gray-600', 
+    bgColor: 'bg-gray-100 dark:bg-gray-800 border-gray-300', 
+    label: 'Resolved', 
+    labelAr: 'محلول',
+    icon: <CheckCircle2 className="w-3 h-3" />
+  },
+  disputed: { 
+    color: 'text-red-600', 
+    bgColor: 'bg-red-100 dark:bg-red-900/30 border-red-300', 
+    label: 'Disputed', 
+    labelAr: 'متنازع',
+    icon: <HelpCircle className="w-3 h-3" />
+  }
+};
 
 const Messages = () => {
-  const { conversationId } = useParams<{ conversationId?: string }>();
   const { user } = useAuth();
   const { language } = useLanguageContext();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [newMessage, setNewMessage] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState('all');
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [replyMessage, setReplyMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isRTL = language === 'ar';
 
-  // Fetch conversations
-  const { data: conversations, isLoading: loadingConversations } = useQuery({
-    queryKey: ['conversations', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-        .order('last_message_at', { ascending: false, nullsFirst: false });
-      
-      if (error) throw error;
-      
-      // Fetch other user profiles
-      const otherUserIds = data.map(c => 
-        c.participant_1 === user.id ? c.participant_2 : c.participant_1
-      );
-      
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, avatar_url, display_id')
-        .in('user_id', otherUserIds);
-      
-      // Fetch last messages
-      const conversationsWithDetails = await Promise.all(data.map(async (conv) => {
-        const otherUserId = conv.participant_1 === user.id ? conv.participant_2 : conv.participant_1;
-        const otherUser = profiles?.find(p => p.user_id === otherUserId);
-        
-        const { data: lastMsg } = await supabase
-          .from('direct_messages')
-          .select('content, sender_id')
-          .eq('conversation_id', conv.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        const { count: unreadCount } = await supabase
-          .from('direct_messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('conversation_id', conv.id)
-          .neq('sender_id', user.id)
-          .is('read_at', null);
-        
-        return {
-          ...conv,
-          other_user: otherUser || { user_id: otherUserId, full_name: null, avatar_url: null, display_id: 'Unknown' },
-          last_message: lastMsg,
-          unread_count: unreadCount || 0
-        };
-      }));
-      
-      return conversationsWithDetails as Conversation[];
-    },
-    enabled: !!user
-  });
-
-  // Fetch messages for selected conversation
-  const { data: messages, isLoading: loadingMessages } = useQuery({
-    queryKey: ['messages', conversationId],
-    queryFn: async () => {
-      if (!conversationId) return [];
-      
-      const { data, error } = await supabase
-        .from('direct_messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
-      
-      // Mark messages as read
-      if (user) {
-        await supabase
-          .from('direct_messages')
-          .update({ read_at: new Date().toISOString() })
-          .eq('conversation_id', conversationId)
-          .neq('sender_id', user.id)
-          .is('read_at', null);
-      }
-      
-      return data as Message[];
-    },
-    enabled: !!conversationId
-  });
-
-  // Send message mutation
-  const sendMessage = useMutation({
-    mutationFn: async (content: string) => {
-      if (!user || !conversationId) throw new Error('Not authenticated');
-      
-      const { data, error } = await supabase
-        .from('direct_messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          content
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      setNewMessage('');
-      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    },
-    onError: () => {
-      toast.error(isRTL ? 'فشل إرسال الرسالة' : 'Failed to send message');
-    }
-  });
-
-  // Real-time subscription
+  // Get ticket ID from URL
   useEffect(() => {
-    if (!conversationId) return;
+    const ticketId = searchParams.get('id');
+    if (ticketId) {
+      setSelectedTicketId(ticketId);
+    }
+  }, [searchParams]);
 
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'direct_messages',
-          filter: `conversation_id=eq.${conversationId}`
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
-          queryClient.invalidateQueries({ queryKey: ['conversations'] });
-        }
-      )
-      .subscribe();
+  // Fetch all tickets (support tickets + direct conversations)
+  const { data: tickets, isLoading, refetch } = useQuery({
+    queryKey: ['user-messages-tickets', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .select(`
+          *,
+          ticket_messages(count),
+          target_profile:profiles!support_tickets_target_user_id_fkey(full_name, avatar_url)
+        `)
+        .or(`user_id.eq.${user.id},target_user_id.eq.${user.id}`)
+        .order('updated_at', { ascending: false });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [conversationId, queryClient]);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 30 * 1000,
+  });
+
+  const selectedTicket = tickets?.find(t => t.id === selectedTicketId);
+  const { data: messages, isLoading: messagesLoading } = useTicketMessages(selectedTicketId || undefined);
+  const sendMessage = useSendTicketMessage();
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-    sendMessage.mutate(newMessage.trim());
+  const getTicketIcon = (type: string) => {
+    switch (type) {
+      case 'group_inquiry': return <Users className="h-4 w-4" />;
+      case 'training_inquiry': return <GraduationCap className="h-4 w-4" />;
+      case 'event_inquiry': return <Calendar className="h-4 w-4" />;
+      default: return <HelpCircle className="h-4 w-4" />;
+    }
   };
 
-  const selectedConversation = conversations?.find(c => c.id === conversationId);
-  const filteredConversations = conversations?.filter(c => 
-    !searchQuery || 
-    c.other_user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.other_user.display_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const getStatusBadge = (status: string) => {
+    const config = statusConfig[status] || statusConfig.open;
+    return (
+      <Badge 
+        variant="outline" 
+        className={cn(
+          'gap-1 border transition-all text-xs',
+          config.bgColor,
+          config.color
+        )}
+      >
+        {config.icon}
+        {isRTL ? config.labelAr : config.label}
+      </Badge>
+    );
+  };
 
-  const getInitials = (name: string | null) => {
-    if (!name) return '?';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const filteredTickets = tickets?.filter(ticket => {
+    const matchesTab = activeTab === 'all' || ticket.ticket_type === activeTab;
+    const matchesSearch = !searchQuery || 
+      ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesTab && matchesSearch;
+  }) || [];
+
+  const handleSelectTicket = (ticketId: string) => {
+    setSelectedTicketId(ticketId);
+    setSearchParams({ id: ticketId });
+  };
+
+  const handleBack = () => {
+    setSelectedTicketId(null);
+    setSearchParams({});
+  };
+
+  const handleSendReply = async () => {
+    if (!replyMessage.trim() || !selectedTicketId) return;
+    
+    try {
+      await sendMessage.mutateAsync({ ticketId: selectedTicketId, message: replyMessage });
+      setReplyMessage('');
+      toast.success(isRTL ? 'تم إرسال الرد' : 'Reply sent');
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      toast.error(isRTL ? 'فشل إرسال الرد' : 'Failed to send reply');
+    }
   };
 
   if (!user) {
@@ -230,215 +195,288 @@ const Messages = () => {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background" dir={isRTL ? 'rtl' : 'ltr'}>
       <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-4 max-w-6xl">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[calc(100vh-180px)]">
-          {/* Conversations List */}
-          <Card className={cn(
-            "md:col-span-1 flex flex-col",
-            conversationId && "hidden md:flex"
-          )}>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <MessageCircle className="h-5 w-5" />
+      <main className="container mx-auto px-4 py-6 lg:py-8">
+        {/* Header */}
+        <motion.div 
+          className="flex items-center justify-between mb-6"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">
                 {isRTL ? 'الرسائل' : 'Messages'}
-              </CardTitle>
-              <div className="relative mt-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={isRTL ? 'بحث...' : 'Search...'}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-hidden">
-              <ScrollArea className="h-full">
-                {loadingConversations ? (
-                  <div className="p-4 space-y-3">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="flex items-center gap-3">
-                        <Skeleton className="h-12 w-12 rounded-full" />
-                        <div className="flex-1">
-                          <Skeleton className="h-4 w-32 mb-2" />
-                          <Skeleton className="h-3 w-48" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : filteredConversations?.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    {isRTL ? 'لا توجد محادثات' : 'No conversations yet'}
-                  </div>
-                ) : (
-                  <div className="divide-y">
-                    {filteredConversations?.map(conv => (
-                      <Link
-                        key={conv.id}
-                        to={`/messages/${conv.id}`}
-                        className={cn(
-                          "flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors",
-                          conv.id === conversationId && "bg-muted"
-                        )}
-                      >
-                        <div className="relative">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={conv.other_user.avatar_url || undefined} />
-                            <AvatarFallback className="bg-primary/10 text-primary">
-                              {getInitials(conv.other_user.full_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          {(conv.unread_count ?? 0) > 0 && (
-                            <Circle className="absolute -top-1 -right-1 h-4 w-4 fill-primary text-primary" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium truncate">
-                              {conv.other_user.full_name || conv.other_user.display_id}
-                            </p>
-                            {conv.last_message_at && (
-                              <span className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(conv.last_message_at), {
-                                  addSuffix: false,
-                                  locale: isRTL ? ar : enUS
-                                })}
-                              </span>
-                            )}
-                          </div>
-                          {conv.last_message && (
-                            <p className="text-sm text-muted-foreground truncate">
-                              {conv.last_message.sender_id === user.id && (isRTL ? 'أنت: ' : 'You: ')}
-                              {conv.last_message.content}
-                            </p>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {isRTL ? `${filteredTickets.length} محادثة` : `${filteredTickets.length} conversations`}
+              </p>
+            </div>
+          </div>
+        </motion.div>
 
-          {/* Chat Area */}
-          <Card className={cn(
-            "md:col-span-2 flex flex-col",
-            !conversationId && "hidden md:flex"
-          )}>
-            {conversationId && selectedConversation ? (
-              <>
-                {/* Chat Header */}
-                <CardHeader className="border-b pb-3">
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="md:hidden"
-                      onClick={() => navigate('/messages')}
-                    >
-                      <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <Link to={`/user/${selectedConversation.other_user.user_id}`} className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={selectedConversation.other_user.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          {getInitials(selectedConversation.other_user.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold">
-                          {selectedConversation.other_user.full_name || selectedConversation.other_user.display_id}
-                        </p>
-                      </div>
-                    </Link>
-                  </div>
-                </CardHeader>
+        {/* Split View Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
+          {/* Messages List - Left Panel */}
+          <motion.div 
+            className={cn(
+              "lg:col-span-4 flex flex-col",
+              selectedTicketId && "hidden lg:flex"
+            )}
+            initial={{ opacity: 0, x: isRTL ? 20 : -20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            {/* Search Bar */}
+            <div className="relative mb-4">
+              <Search className={cn(
+                "absolute top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground",
+                isRTL ? "right-3" : "left-3"
+              )} />
+              <Input
+                placeholder={isRTL ? 'بحث في الرسائل...' : 'Search messages...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={cn(isRTL ? "pr-9" : "pl-9")}
+              />
+            </div>
 
-                {/* Messages */}
-                <CardContent className="flex-1 p-0 overflow-hidden">
-                  <ScrollArea className="h-full p-4">
-                    {loadingMessages ? (
-                      <div className="space-y-4">
-                        {[1, 2, 3].map(i => (
-                          <div key={i} className={cn("flex", i % 2 === 0 && "justify-end")}>
-                            <Skeleton className="h-12 w-48 rounded-2xl" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : messages?.length === 0 ? (
-                      <div className="h-full flex items-center justify-center text-muted-foreground">
-                        {isRTL ? 'ابدأ المحادثة' : 'Start the conversation'}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+              <TabsList className="w-full mb-4 h-12">
+                <TabsTrigger value="all" className="flex-1 text-xs sm:text-sm">
+                  {isRTL ? 'الكل' : 'All'}
+                </TabsTrigger>
+                <TabsTrigger value="group_inquiry" className="flex-1 text-xs sm:text-sm">
+                  <Users className="h-3 w-3 sm:mr-1" />
+                  <span className="hidden sm:inline">{isRTL ? 'المجموعات' : 'Groups'}</span>
+                </TabsTrigger>
+                <TabsTrigger value="training_inquiry" className="flex-1 text-xs sm:text-sm">
+                  <GraduationCap className="h-3 w-3 sm:mr-1" />
+                  <span className="hidden sm:inline">{isRTL ? 'التدريب' : 'Training'}</span>
+                </TabsTrigger>
+                <TabsTrigger value="event_inquiry" className="flex-1 text-xs sm:text-sm">
+                  <Calendar className="h-3 w-3 sm:mr-1" />
+                  <span className="hidden sm:inline">{isRTL ? 'الفعاليات' : 'Events'}</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <Card className="flex-1 flex flex-col overflow-hidden">
+                <ScrollArea className="flex-1">
+                  <div className="p-2">
+                    {filteredTickets.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                        <p>{isRTL ? 'لا توجد رسائل' : 'No messages found'}</p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {messages?.map((msg, idx) => {
-                          const isMine = msg.sender_id === user.id;
-                          const showDate = idx === 0 || 
-                            new Date(msg.created_at).toDateString() !== 
-                            new Date(messages[idx - 1].created_at).toDateString();
-                          
-                          return (
-                            <React.Fragment key={msg.id}>
-                              {showDate && (
-                                <div className="text-center text-xs text-muted-foreground my-4">
-                                  {format(new Date(msg.created_at), 'PPP', { locale: isRTL ? ar : enUS })}
-                                </div>
+                      <div className="space-y-2">
+                        <AnimatePresence>
+                          {filteredTickets.map((ticket, index) => (
+                            <motion.div
+                              key={ticket.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.03 }}
+                              className={cn(
+                                "p-4 rounded-xl cursor-pointer transition-all border",
+                                selectedTicketId === ticket.id
+                                  ? "bg-primary/10 border-primary/30"
+                                  : "hover:bg-muted/50 border-transparent hover:border-border"
                               )}
-                              <div className={cn("flex", isMine && "justify-end")}>
-                                <div
-                                  className={cn(
-                                    "max-w-[70%] rounded-2xl px-4 py-2",
-                                    isMine 
-                                      ? "bg-primary text-primary-foreground" 
-                                      : "bg-muted"
-                                  )}
-                                >
-                                  <p className="break-words">{msg.content}</p>
-                                  <p className={cn(
-                                    "text-xs mt-1",
-                                    isMine ? "text-primary-foreground/70" : "text-muted-foreground"
-                                  )}>
-                                    {format(new Date(msg.created_at), 'p', { locale: isRTL ? ar : enUS })}
-                                  </p>
+                              onClick={() => handleSelectTicket(ticket.id)}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={cn(
+                                  "p-2 rounded-lg flex-shrink-0",
+                                  selectedTicketId === ticket.id ? "bg-primary/20" : "bg-muted"
+                                )}>
+                                  {getTicketIcon(ticket.ticket_type)}
                                 </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-medium truncate text-sm">{ticket.subject}</h3>
+                                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                    {getStatusBadge(ticket.status)}
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatDistanceToNow(new Date(ticket.updated_at), { 
+                                        addSuffix: true,
+                                        locale: isRTL ? ar : enUS 
+                                      })}
+                                    </span>
+                                  </div>
+                                </div>
+                                <ChevronRight className={cn(
+                                  "h-4 w-4 text-muted-foreground flex-shrink-0",
+                                  isRTL && "rotate-180"
+                                )} />
                               </div>
-                            </React.Fragment>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </Card>
+            </Tabs>
+          </motion.div>
+
+          {/* Message Thread - Right Panel */}
+          <motion.div 
+            className={cn(
+              "lg:col-span-8 flex flex-col",
+              !selectedTicketId && "hidden lg:flex"
+            )}
+            initial={{ opacity: 0, x: isRTL ? -20 : 20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <Card className="flex-1 flex flex-col overflow-hidden">
+              {selectedTicket ? (
+                <>
+                  {/* Thread Header */}
+                  <CardHeader className="border-b py-4 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="lg:hidden"
+                        onClick={handleBack}
+                      >
+                        <ArrowLeft className={cn("h-4 w-4", isRTL && "rotate-180")} />
+                      </Button>
+                      <div className={cn(
+                        "p-2 rounded-lg",
+                        statusConfig[selectedTicket.status]?.bgColor || "bg-muted"
+                      )}>
+                        {getTicketIcon(selectedTicket.ticket_type)}
+                      </div>
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">{selectedTicket.subject}</CardTitle>
+                        <div className="flex items-center gap-2 mt-1">
+                          {getStatusBadge(selectedTicket.status)}
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(selectedTicket.created_at), 'PPp', { 
+                              locale: isRTL ? ar : enUS 
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  {/* Messages */}
+                  <ScrollArea className="flex-1 p-4">
+                    {messagesLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {messages?.map((msg: any, index: number) => {
+                          const isOwn = msg.sender_id === user?.id;
+                          return (
+                            <motion.div
+                              key={msg.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.03 }}
+                              className={cn(
+                                "flex gap-3",
+                                isOwn && "flex-row-reverse"
+                              )}
+                            >
+                              <Avatar className="h-8 w-8 flex-shrink-0">
+                                <AvatarImage src={msg.profiles?.avatar_url} />
+                                <AvatarFallback className="text-xs">
+                                  {msg.profiles?.full_name?.[0] || '?'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className={cn(
+                                "max-w-[75%] rounded-2xl px-4 py-3",
+                                isOwn 
+                                  ? "bg-primary text-primary-foreground rounded-tr-sm" 
+                                  : "bg-muted rounded-tl-sm"
+                              )}>
+                                <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                                <p className={cn(
+                                  "text-[10px] mt-1.5",
+                                  isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
+                                )}>
+                                  {format(new Date(msg.created_at), 'p', { 
+                                    locale: isRTL ? ar : enUS 
+                                  })}
+                                </p>
+                              </div>
+                            </motion.div>
                           );
                         })}
                         <div ref={messagesEndRef} />
                       </div>
                     )}
                   </ScrollArea>
-                </CardContent>
 
-                {/* Message Input */}
-                <div className="border-t p-4">
-                  <form onSubmit={handleSend} className="flex gap-2">
-                    <Input
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder={isRTL ? 'اكتب رسالة...' : 'Type a message...'}
-                      className="flex-1"
-                    />
-                    <Button type="submit" size="icon" disabled={!newMessage.trim() || sendMessage.isPending}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </form>
+                  {/* Reply Input */}
+                  {selectedTicket.status !== 'resolved' && (
+                    <div className="border-t p-4 flex-shrink-0">
+                      <div className="flex gap-3">
+                        <Textarea
+                          value={replyMessage}
+                          onChange={(e) => setReplyMessage(e.target.value)}
+                          placeholder={isRTL ? 'اكتب ردك...' : 'Type your reply...'}
+                          className="min-h-[60px] resize-none"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendReply();
+                            }
+                          }}
+                        />
+                        <Button 
+                          size="icon" 
+                          className="h-[60px] w-[60px]"
+                          onClick={handleSendReply}
+                          disabled={!replyMessage.trim() || sendMessage.isPending}
+                        >
+                          {sendMessage.isPending ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Send className={cn("h-5 w-5", isRTL && "rotate-180")} />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <MessageCircle className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                    <p className="text-lg font-medium">
+                      {isRTL ? 'اختر محادثة' : 'Select a conversation'}
+                    </p>
+                    <p className="text-sm mt-1 opacity-70">
+                      {isRTL ? 'اختر محادثة من القائمة للبدء' : 'Choose a conversation from the list to start'}
+                    </p>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>{isRTL ? 'اختر محادثة للبدء' : 'Select a conversation to start'}</p>
-                </div>
-              </div>
-            )}
-          </Card>
+              )}
+            </Card>
+          </motion.div>
         </div>
       </main>
       <Footer />

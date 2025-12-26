@@ -135,8 +135,12 @@ const GroupDetails = () => {
     );
   }
 
+  // Get group owner/admin info for ticket
+  const groupOwner = members.find(m => m.role === 'owner');
+  const groupAdmins = members.filter(m => m.role === 'admin' || m.role === 'owner');
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col" dir={isRTL ? 'rtl' : 'ltr'}>
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
@@ -147,10 +151,16 @@ const GroupDetails = () => {
             <ArrowLeft className={`w-4 h-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
             {isRTL ? 'العودة للمجموعات' : 'Back to Groups'}
           </Button>
+        </div>
+
+        {/* Group Title with Ask Leader Button */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">{group?.group_name}</h1>
           
-          {user && !hasAccess && (
+          {/* Ask Leader button - show for members OR non-members */}
+          {user && (
             <Button 
-              variant="outline" 
+              variant={hasAccess ? "default" : "outline"}
               onClick={() => setShowTicketDialog(true)}
               className="gap-2"
             >
@@ -167,7 +177,9 @@ const GroupDetails = () => {
           ticketType="group_inquiry"
           entityId={groupId}
           entityType="group"
-          targetUserId={group?.created_by}
+          targetUserId={groupOwner?.user_id || group?.created_by}
+          targetUserName={groupOwner?.profiles?.full_name}
+          entityName={group?.group_name}
         />
 
         <div className="space-y-6">

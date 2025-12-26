@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,21 +24,25 @@ import {
   User,
   UserPlus
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
 import { eventsService } from "@/services/supabaseServices";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguageContext } from "@/contexts/LanguageContext";
 import { EventGalleryDialog } from "@/components/Groups/EventGalleryDialog";
+import { CreateTicketDialog } from "@/components/Tickets/CreateTicketDialog";
 
 const EventDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { language } = useLanguageContext();
+  const isRTL = language === 'ar';
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [showTicketDialog, setShowTicketDialog] = useState(false);
 
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -166,15 +170,8 @@ const EventDetails = () => {
   };
 
   const handleContact = () => {
-    if (organizer?.phone) {
-      window.open(`https://wa.me/${organizer.phone}?text=مرحباً، أريد الاستفسار عن فعالية ${event.title_ar}`);
-    } else {
-      toast({
-        title: "معلومات الاتصال غير متوفرة",
-        description: "لا توجد معلومات اتصال للمنظم",
-        variant: "destructive"
-      });
-    }
+    // Open ticket dialog instead of WhatsApp
+    setShowTicketDialog(true);
   };
 
   const handleViewMap = () => {
@@ -437,13 +434,26 @@ const EventDetails = () => {
                       </div>
                     </div>
                   </Link>
-                  <Button variant="outline" onClick={handleContact}>
-                    <MessageCircle className="w-4 h-4 ml-2" />
-                    تواصل
+                  <Button variant="outline" onClick={handleContact} className="gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    {isRTL ? 'اسأل المنظم' : 'Ask Organizer'}
                   </Button>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Ticket Dialog */}
+            <CreateTicketDialog
+              open={showTicketDialog}
+              onClose={() => setShowTicketDialog(false)}
+              ticketType="event_inquiry"
+              entityId={id}
+              entityType="event"
+              targetUserId={event.organizer_id}
+              targetUserName={organizer?.full_name}
+              targetUserAvatar={organizer?.avatar_url}
+              entityName={event.title_ar || event.title}
+            />
 
             {/* Description */}
             <Card>

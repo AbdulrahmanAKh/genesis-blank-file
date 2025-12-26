@@ -381,45 +381,18 @@ const ServiceDetails = () => {
                         <Badge variant="secondary" className="text-xs">مقدم خدمة معتمد</Badge>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
-                      {service.provider?.phone && (
-                          <a 
-                            href={`https://wa.me/${service.provider.phone.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                          >
-                            <Phone className="w-3 h-3" />
-                            {service.provider.phone}
-                          </a>
-                        )}
+                        {/* Removed WhatsApp - using ticket system instead */}
                       </div>
                     </div>
                   </div>
-                    {service.provider?.phone && (
-                    <Button 
-                      variant="outline" 
-                      asChild
-                    >
-                      <a 
-                        href={`https://wa.me/${service.provider.phone.replace(/\D/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <MessageCircle className="w-4 h-4 ml-2" />
-                        تواصل عبر الواتساب
-                      </a>
-                    </Button>
-                  )}
-                  {isTrainingService && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowTicketDialog(true)}
-                      className="gap-2"
-                    >
-                      <GraduationCap className="w-4 h-4" />
-                      استشر المدرب
-                    </Button>
-                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowTicketDialog(true)}
+                    className="gap-2"
+                  >
+                    <GraduationCap className="w-4 h-4" />
+                    {isTrainingService ? 'استشر المدرب' : 'تواصل مع مقدم الخدمة'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

@@ -61,8 +61,7 @@ const UpcomingEvents = () => {
           .in('group_id', groupIds)
           .gte('start_date', new Date().toISOString())
           .eq('status', 'approved')
-          .order('start_date', { ascending: true })
-          .limit(8);
+          .order('start_date', { ascending: true });
 
         if (eventsError) throw eventsError;
 

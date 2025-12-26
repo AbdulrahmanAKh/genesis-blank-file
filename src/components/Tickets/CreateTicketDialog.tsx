@@ -9,14 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, HelpCircle, GraduationCap, Users, Send, Loader2, Sparkles } from 'lucide-react';
+import { MessageSquare, HelpCircle, GraduationCap, Users, Send, Loader2, Sparkles, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface CreateTicketDialogProps {
   open: boolean;
   onClose: () => void;
-  ticketType: 'group_inquiry' | 'training_inquiry' | 'support';
+  ticketType: 'group_inquiry' | 'training_inquiry' | 'support' | 'event_inquiry';
   entityType?: 'group' | 'service' | 'event' | null;
   entityId?: string;
   targetUserId?: string;
@@ -41,6 +41,14 @@ const ticketConfig = {
     title: { en: 'Consult Trainer', ar: 'استشر المدرب' },
     subtitle: { en: 'Get expert advice from the trainer', ar: 'احصل على نصيحة خبير من المدرب' },
     placeholder: { en: 'Ask about the training, schedule, or preparation tips...', ar: 'اسأل عن التدريب، الجدول، أو نصائح التحضير...' }
+  },
+  event_inquiry: { 
+    icon: Calendar,
+    gradient: 'from-orange-500 to-amber-500',
+    bgGradient: 'from-orange-500/10 to-amber-500/10',
+    title: { en: 'Ask the Organizer', ar: 'اسأل المنظم' },
+    subtitle: { en: 'Start a conversation with the event organizer', ar: 'ابدأ محادثة مع منظم الفعالية' },
+    placeholder: { en: 'Ask about the event details, requirements, or anything else...', ar: 'اسأل عن تفاصيل الفعالية، المتطلبات، أو أي شيء آخر...' }
   },
   support: { 
     icon: HelpCircle,

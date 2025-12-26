@@ -5,6 +5,7 @@ import UpcomingEvents from "@/components/Home/UpcomingEvents";
 import MyTrainings from "@/components/Home/MyTrainings";
 import JoinSuggestions from "@/components/Home/JoinSuggestions";
 import DiscountedEvents from "@/components/Home/DiscountedEvents";
+import { FloatingTicketButton } from "@/components/Tickets/FloatingTicketButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -122,6 +123,7 @@ const Index = () => {
         <JoinSuggestions />
         <DiscountedEvents />
       </main>
+      <FloatingTicketButton />
       <Footer />
     </div>
   );

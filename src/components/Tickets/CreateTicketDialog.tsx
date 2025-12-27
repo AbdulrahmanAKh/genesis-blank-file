@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 interface CreateTicketDialogProps {
   open: boolean;
   onClose: () => void;
-  ticketType: 'group_inquiry' | 'training_inquiry' | 'support' | 'event_inquiry';
+  ticketType: 'group_inquiry' | 'training_inquiry' | 'support' | 'event_inquiry' | 'general';
   entityType?: 'group' | 'service' | 'event' | null;
   entityId?: string;
   targetUserId?: string;
@@ -57,6 +57,14 @@ const ticketConfig = {
     title: { en: 'Platform Support', ar: 'دعم المنصة' },
     subtitle: { en: 'Get help from our support team', ar: 'احصل على مساعدة من فريق الدعم' },
     placeholder: { en: 'Describe your issue or question...', ar: 'صف مشكلتك أو سؤالك...' }
+  },
+  general: { 
+    icon: MessageSquare,
+    gradient: 'from-indigo-500 to-violet-500',
+    bgGradient: 'from-indigo-500/10 to-violet-500/10',
+    title: { en: 'New Inquiry', ar: 'استفسار جديد' },
+    subtitle: { en: 'Send a new message or inquiry', ar: 'أرسل رسالة أو استفسار جديد' },
+    placeholder: { en: 'Write your message or inquiry...', ar: 'اكتب رسالتك أو استفسارك...' }
   }
 };
 

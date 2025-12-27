@@ -1,19 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguageContext } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Layout/Navbar';
 import Footer from '@/components/Layout/Footer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CreateTicketDialog } from '@/components/Tickets/CreateTicketDialog';
 import { 
   MessageSquare, 
   Users, 
@@ -27,13 +28,15 @@ import {
   Clock,
   CheckCircle2,
   Search,
-  MessageCircle
+  MessageCircle,
+  Plus,
+  ArrowUpRight,
+  ArrowDownLeft
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useTicketMessages, useSendTicketMessage } from '@/hooks/useTickets';
 import { toast } from 'sonner';
 
 // Status color config
@@ -74,16 +77,33 @@ const statusConfig: Record<string, {
   }
 };
 
+interface SupportTicket {
+  id: string;
+  user_id: string;
+  ticket_type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  target_user_id: string | null;
+  subject: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  is_sent: boolean;
+  sender_name?: string;
+  target_name?: string;
+}
+
 const Messages = () => {
   const { user } = useAuth();
   const { language } = useLanguageContext();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('all');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isRTL = language === 'ar';
 
@@ -95,39 +115,97 @@ const Messages = () => {
     }
   }, [searchParams]);
 
-  // Fetch all tickets using contact_submissions table
+  // Fetch all tickets - both sent by user AND received by user (as target)
   const { data: tickets, isLoading, refetch } = useQuery({
-    queryKey: ['user-messages-tickets', user?.id, user?.email],
+    queryKey: ['user-messages-tickets', user?.id],
     queryFn: async () => {
-      if (!user?.id || !user?.email) return [];
+      if (!user?.id) return [];
       
+      // Fetch tickets where user is sender OR target
       const { data, error } = await supabase
-        .from('contact_submissions')
+        .from('support_tickets')
         .select('*')
-        .eq('email', user.email)
-        .order('created_at', { ascending: false });
+        .or(`user_id.eq.${user.id},target_user_id.eq.${user.id}`)
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
       
-      // Map to expected format
-      return (data || []).map(item => ({
-        id: item.id,
-        subject: item.subject,
-        ticket_type: item.category,
-        status: item.status === 'pending' ? 'open' : item.status,
-        created_at: item.created_at,
-        updated_at: item.created_at,
-        message: item.message,
-        admin_notes: item.admin_notes,
-      }));
+      // Fetch user names for tickets
+      const userIds = new Set<string>();
+      (data || []).forEach(ticket => {
+        if (ticket.user_id) userIds.add(ticket.user_id);
+        if (ticket.target_user_id) userIds.add(ticket.target_user_id);
+      });
+      
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url')
+        .in('user_id', Array.from(userIds));
+      
+      const profilesMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      
+      // Map tickets with sent/received indicator
+      return (data || []).map(ticket => ({
+        ...ticket,
+        is_sent: ticket.user_id === user.id,
+        sender_name: profilesMap.get(ticket.user_id)?.full_name,
+        target_name: profilesMap.get(ticket.target_user_id)?.full_name,
+      })) as SupportTicket[];
     },
-    enabled: !!user?.id && !!user?.email,
+    enabled: !!user?.id,
     staleTime: 30 * 1000,
   });
 
   const selectedTicket = tickets?.find(t => t.id === selectedTicketId);
-  const { data: messages, isLoading: messagesLoading } = useTicketMessages(selectedTicketId || undefined);
-  const sendMessage = useSendTicketMessage();
+  
+  // Fetch messages for selected ticket
+  const { data: messages, isLoading: messagesLoading } = useQuery({
+    queryKey: ['ticket-messages', selectedTicketId],
+    queryFn: async () => {
+      if (!selectedTicketId) return [];
+      
+      const { data, error } = await supabase
+        .from('ticket_messages')
+        .select(`
+          *,
+          profiles:sender_id(full_name, avatar_url)
+        `)
+        .eq('ticket_id', selectedTicketId)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedTicketId,
+    staleTime: 30 * 1000,
+  });
+
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ ticketId, message }: { ticketId: string; message: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      
+      const { error: msgError } = await supabase
+        .from('ticket_messages')
+        .insert({
+          ticket_id: ticketId,
+          sender_id: user.id,
+          message: message.trim()
+        });
+      
+      if (msgError) throw msgError;
+      
+      // Update ticket status
+      await supabase
+        .from('support_tickets')
+        .update({ status: 'replied', updated_at: new Date().toISOString() })
+        .eq('id', ticketId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket-messages', selectedTicketId] });
+      queryClient.invalidateQueries({ queryKey: ['user-messages-tickets'] });
+    }
+  });
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -161,7 +239,10 @@ const Messages = () => {
   };
 
   const filteredTickets = tickets?.filter(ticket => {
-    const matchesTab = activeTab === 'all' || ticket.ticket_type === activeTab;
+    const matchesTab = activeTab === 'all' || 
+      (activeTab === 'sent' && ticket.is_sent) ||
+      (activeTab === 'received' && !ticket.is_sent) ||
+      ticket.ticket_type === activeTab;
     const matchesSearch = !searchQuery || 
       ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
@@ -181,7 +262,7 @@ const Messages = () => {
     if (!replyMessage.trim() || !selectedTicketId) return;
     
     try {
-      await sendMessage.mutateAsync({ ticketId: selectedTicketId, message: replyMessage });
+      await sendMessageMutation.mutateAsync({ ticketId: selectedTicketId, message: replyMessage });
       setReplyMessage('');
       toast.success(isRTL ? 'تم إرسال الرد' : 'Reply sent');
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -237,7 +318,25 @@ const Messages = () => {
               </p>
             </div>
           </div>
+          
+          {/* Create New Inquiry Button */}
+          <Button 
+            onClick={() => setShowCreateDialog(true)}
+            className="gap-2 relative group"
+            size="lg"
+          >
+            <Plus className="h-5 w-5 transition-transform group-hover:rotate-90" />
+            <span className="hidden sm:inline">{isRTL ? 'استفسار جديد' : 'New Inquiry'}</span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+          </Button>
         </motion.div>
+
+        {/* Create Ticket Dialog */}
+        <CreateTicketDialog
+          open={showCreateDialog}
+          onClose={() => setShowCreateDialog(false)}
+          ticketType="general"
+        />
 
         {/* Split View Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-250px)] min-h-[500px]">
@@ -265,21 +364,17 @@ const Messages = () => {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="w-full mb-4 h-12">
-                <TabsTrigger value="all" className="flex-1 text-xs sm:text-sm">
+              <TabsList className="w-full mb-4 h-12 grid grid-cols-3">
+                <TabsTrigger value="all" className="text-xs sm:text-sm">
                   {isRTL ? 'الكل' : 'All'}
                 </TabsTrigger>
-                <TabsTrigger value="group_inquiry" className="flex-1 text-xs sm:text-sm">
-                  <Users className="h-3 w-3 sm:mr-1" />
-                  <span className="hidden sm:inline">{isRTL ? 'المجموعات' : 'Groups'}</span>
+                <TabsTrigger value="sent" className="text-xs sm:text-sm gap-1">
+                  <ArrowUpRight className="h-3 w-3" />
+                  <span className="hidden sm:inline">{isRTL ? 'المرسلة' : 'Sent'}</span>
                 </TabsTrigger>
-                <TabsTrigger value="training_inquiry" className="flex-1 text-xs sm:text-sm">
-                  <GraduationCap className="h-3 w-3 sm:mr-1" />
-                  <span className="hidden sm:inline">{isRTL ? 'التدريب' : 'Training'}</span>
-                </TabsTrigger>
-                <TabsTrigger value="event_inquiry" className="flex-1 text-xs sm:text-sm">
-                  <Calendar className="h-3 w-3 sm:mr-1" />
-                  <span className="hidden sm:inline">{isRTL ? 'الفعاليات' : 'Events'}</span>
+                <TabsTrigger value="received" className="text-xs sm:text-sm gap-1">
+                  <ArrowDownLeft className="h-3 w-3" />
+                  <span className="hidden sm:inline">{isRTL ? 'المستلمة' : 'Received'}</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -290,6 +385,13 @@ const Messages = () => {
                       <div className="text-center py-12 text-muted-foreground">
                         <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-30" />
                         <p>{isRTL ? 'لا توجد رسائل' : 'No messages found'}</p>
+                        <Button 
+                          variant="link" 
+                          onClick={() => setShowCreateDialog(true)}
+                          className="mt-2"
+                        >
+                          {isRTL ? 'إنشاء استفسار جديد' : 'Create a new inquiry'}
+                        </Button>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -310,13 +412,30 @@ const Messages = () => {
                             >
                               <div className="flex items-start gap-3">
                                 <div className={cn(
-                                  "p-2 rounded-lg flex-shrink-0",
+                                  "p-2 rounded-lg flex-shrink-0 relative",
                                   selectedTicketId === ticket.id ? "bg-primary/20" : "bg-muted"
                                 )}>
                                   {getTicketIcon(ticket.ticket_type)}
+                                  {/* Sent/Received indicator */}
+                                  <div className={cn(
+                                    "absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white",
+                                    ticket.is_sent ? "bg-blue-500" : "bg-green-500"
+                                  )}>
+                                    {ticket.is_sent ? (
+                                      <ArrowUpRight className="h-2.5 w-2.5" />
+                                    ) : (
+                                      <ArrowDownLeft className="h-2.5 w-2.5" />
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h3 className="font-medium truncate text-sm">{ticket.subject}</h3>
+                                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                    {ticket.is_sent 
+                                      ? (isRTL ? `إلى: ${ticket.target_name || 'غير محدد'}` : `To: ${ticket.target_name || 'Unknown'}`)
+                                      : (isRTL ? `من: ${ticket.sender_name || 'غير محدد'}` : `From: ${ticket.sender_name || 'Unknown'}`)
+                                    }
+                                  </p>
                                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                     {getStatusBadge(ticket.status)}
                                     <span className="text-xs text-muted-foreground">
@@ -367,15 +486,31 @@ const Messages = () => {
                         <ArrowLeft className={cn("h-4 w-4", isRTL && "rotate-180")} />
                       </Button>
                       <div className={cn(
-                        "p-2 rounded-lg",
+                        "p-2 rounded-lg relative",
                         statusConfig[selectedTicket.status]?.bgColor || "bg-muted"
                       )}>
                         {getTicketIcon(selectedTicket.ticket_type)}
+                        <div className={cn(
+                          "absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white",
+                          selectedTicket.is_sent ? "bg-blue-500" : "bg-green-500"
+                        )}>
+                          {selectedTicket.is_sent ? (
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                          ) : (
+                            <ArrowDownLeft className="h-2.5 w-2.5" />
+                          )}
+                        </div>
                       </div>
                       <div className="flex-1">
                         <CardTitle className="text-lg">{selectedTicket.subject}</CardTitle>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {getStatusBadge(selectedTicket.status)}
+                          <Badge variant="outline" className="text-xs">
+                            {selectedTicket.is_sent 
+                              ? (isRTL ? `إلى: ${selectedTicket.target_name}` : `To: ${selectedTicket.target_name}`)
+                              : (isRTL ? `من: ${selectedTicket.sender_name}` : `From: ${selectedTicket.sender_name}`)
+                            }
+                          </Badge>
                           <span className="text-xs text-muted-foreground">
                             {format(new Date(selectedTicket.created_at), 'PPp', { 
                               locale: isRTL ? ar : enUS 
@@ -457,9 +592,9 @@ const Messages = () => {
                           size="icon" 
                           className="h-[60px] w-[60px]"
                           onClick={handleSendReply}
-                          disabled={!replyMessage.trim() || sendMessage.isPending}
+                          disabled={!replyMessage.trim() || sendMessageMutation.isPending}
                         >
-                          {sendMessage.isPending ? (
+                          {sendMessageMutation.isPending ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
                             <Send className={cn("h-5 w-5", isRTL && "rotate-180")} />

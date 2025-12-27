@@ -153,14 +153,14 @@ const GroupDetails = () => {
           </Button>
         </div>
 
-        {/* Group Title with Ask Leader Button */}
+        {/* Group Title with Ask Leader Button - Only for members */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">{group?.group_name}</h1>
           
-          {/* Ask Leader button - show for members OR non-members */}
-          {user && (
+          {/* Ask Leader button - only visible for group members */}
+          {hasAccess && user && !canManageGroup && (
             <Button 
-              variant={hasAccess ? "default" : "outline"}
+              variant="default"
               onClick={() => setShowTicketDialog(true)}
               className="gap-2"
             >

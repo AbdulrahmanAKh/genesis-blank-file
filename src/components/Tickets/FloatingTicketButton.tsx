@@ -60,7 +60,7 @@ export const FloatingTicketButton: React.FC<FloatingTicketButtonProps> = ({ clas
             onHoverEnd={() => setIsHovered(false)}
           >
             <Button
-              onClick={() => navigate('/communication-history')}
+              onClick={() => navigate('/messages')}
               size="lg"
               className={cn(
                 "relative h-14 rounded-full shadow-lg",

@@ -77,7 +77,6 @@ const Followers = lazy(() => import("./pages/Followers"));
 const Following = lazy(() => import("./pages/Following"));
 const Messages = lazy(() => import("./pages/Messages"));
 const JoinReferral = lazy(() => import("./pages/JoinReferral"));
-const CommunicationHistory = lazy(() => import("./pages/CommunicationHistory"));
 
 // Optimized Query Client with caching
 const queryClient = new QueryClient({
@@ -418,9 +417,8 @@ const App = () => (
             {/* Messages Routes */}
             <Route path="/messages" element={<ProtectedRoute requireAuth={true}><Messages /></ProtectedRoute>} />
             <Route path="/messages/:conversationId" element={<ProtectedRoute requireAuth={true}><Messages /></ProtectedRoute>} />
-            {/* Referral & Communication Routes */}
+            {/* Referral Route */}
             <Route path="/join" element={<JoinReferral />} />
-            <Route path="/communication-history" element={<ProtectedRoute requireAuth={true}><CommunicationHistory /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
                       </Routes>

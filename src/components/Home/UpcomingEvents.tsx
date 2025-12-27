@@ -1,20 +1,71 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users, Clock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar, MapPin, Users, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguageContext } from "@/contexts/LanguageContext";
-import { useQuery } from "@tanstack/react-query";
+import useEmblaCarousel from "embla-carousel-react";
+import { cn } from "@/lib/utils";
+
+interface Event {
+  id: string;
+  title: string;
+  title_ar: string;
+  location: string;
+  location_ar: string;
+  start_date: string;
+  end_date: string;
+  price: number | null;
+  image_url: string | null;
+  difficulty_level: string | null;
+  current_attendees: number | null;
+  max_attendees: number | null;
+  group_id: string | null;
+}
 
 const UpcomingEvents = () => {
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const { user } = useAuth();
   const { language } = useLanguageContext();
+  const isRTL = language === 'ar';
+
+  // Embla carousel with no loop to prevent reverse scrolling
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: 'start',
+    direction: isRTL ? 'rtl' : 'ltr',
+    loop: false, // Disable loop to prevent reverse scrolling
+    dragFree: false,
+    containScroll: 'trimSnaps',
+    slidesToScroll: 1,
+  });
+
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+      emblaApi.off('reInit', onSelect);
+    };
+  }, [emblaApi, onSelect]);
 
   useEffect(() => {
     const fetchUpcomingEvents = async () => {
@@ -40,7 +91,7 @@ const UpcomingEvents = () => {
 
         const groupIds = memberGroups.map(g => g.group_id);
 
-        // Get upcoming events from these groups
+        // Get ALL upcoming events from these groups (no limit)
         const { data: eventsData, error: eventsError } = await supabase
           .from('events')
           .select(`
@@ -83,21 +134,15 @@ const UpcomingEvents = () => {
         <div className="container mx-auto px-4">
           <div className="mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              الفعاليات القادمة
+              {isRTL ? 'الفعاليات القادمة' : 'Upcoming Events'}
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl">
-              الفعاليات القادمة من القروبات المنضم لها
+              {isRTL ? 'الفعاليات القادمة من القروبات المنضم لها' : 'Upcoming events from your groups'}
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex gap-4 overflow-hidden">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse">
-                <div className="bg-muted h-48 rounded-t-lg"></div>
-                <div className="p-6 space-y-3">
-                  <div className="h-4 bg-muted rounded w-3/4"></div>
-                  <div className="h-3 bg-muted rounded w-1/2"></div>
-                </div>
-              </div>
+              <Skeleton key={i} className="h-[380px] w-[300px] flex-shrink-0 rounded-lg" />
             ))}
           </div>
         </div>
@@ -111,16 +156,18 @@ const UpcomingEvents = () => {
         <div className="container mx-auto px-4">
           <div className="mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              الفعاليات القادمة
+              {isRTL ? 'الفعاليات القادمة' : 'Upcoming Events'}
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl">
-              الفعاليات القادمة من القروبات المنضم لها
+              {isRTL ? 'الفعاليات القادمة من القروبات المنضم لها' : 'Upcoming events from your groups'}
             </p>
           </div>
           <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">لا توجد فعاليات قادمة في القروبات المنضم لها</p>
+            <p className="text-muted-foreground mb-4">
+              {isRTL ? 'لا توجد فعاليات قادمة في القروبات المنضم لها' : 'No upcoming events in your groups'}
+            </p>
             <Button asChild variant="outline">
-              <Link to="/groups">تصفح القروبات</Link>
+              <Link to="/groups">{isRTL ? 'تصفح القروبات' : 'Browse Groups'}</Link>
             </Button>
           </div>
         </div>
@@ -131,112 +178,145 @@ const UpcomingEvents = () => {
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
-        <div className="mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            الفعاليات القادمة
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl">
-            أقرب الفعاليات المتاحة للحجز
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
+              {isRTL ? 'الفعاليات القادمة' : 'Upcoming Events'}
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              {isRTL ? `${events.length} فعالية قادمة` : `${events.length} upcoming events`}
+            </p>
+          </div>
+          
+          {/* Navigation Buttons */}
+          {events.length > 1 && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-full"
+                onClick={scrollPrev}
+                disabled={!canScrollPrev}
+              >
+                <ChevronLeft className={cn("h-5 w-5", isRTL && "rotate-180")} />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-full"
+                onClick={scrollNext}
+                disabled={!canScrollNext}
+              >
+                <ChevronRight className={cn("h-5 w-5", isRTL && "rotate-180")} />
+              </Button>
+            </div>
+          )}
         </div>
 
-        <Carousel
-          opts={{
-            align: "start",
-            loop: true,
-          }}
-          className="w-full"
-        >
-          <CarouselContent className="-ml-4">
-            {events.map((event) => (
-              <CarouselItem key={event.id} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4">
-                <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 h-full">
-                  <div className="relative">
-                    {event.image_url ? (
-                      <img 
-                        src={event.image_url} 
-                        alt={language === 'ar' ? event.title_ar : event.title}
-                        className="w-full h-48 object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                        <Calendar className="w-16 h-16 text-primary/30" />
-                      </div>
-                    )}
-                    {event.difficulty_level && (
-                      <div className="absolute top-4 right-4 flex gap-2">
-                        <Badge variant="secondary">
-                          {event.difficulty_level === 'beginner' ? 'مبتدئ' : 
-                           event.difficulty_level === 'intermediate' ? 'متوسط' : 'متقدم'}
-                        </Badge>
-                      </div>
-                    )}
-                    <div className="absolute bottom-4 right-4">
-                      <div className="bg-background/90 backdrop-blur-sm rounded-lg px-3 py-1">
-                        <span className="text-sm font-bold text-primary">
-                          {event.price ? `${event.price} ريال` : 'مجاني'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <CardContent className="p-6">
-                    <div className="space-y-3">
-                      <h3 className="text-xl font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                        {language === 'ar' ? event.title_ar : event.title}
-                      </h3>
-                      
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{language === 'ar' ? event.location_ar : event.location}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="w-4 h-4 flex-shrink-0" />
-                        <span>{new Date(event.start_date).toLocaleDateString('ar-SA')}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4 flex-shrink-0" />
-                        <span>
-                          {new Date(event.start_date).toLocaleTimeString('ar-SA', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            hour12: true 
-                          })}
-                        </span>
-                      </div>
-
-                      {event.max_attendees && (
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Users className="w-4 h-4" />
-                            {event.current_attendees || 0}/{event.max_attendees}
-                          </div>
+        {/* Carousel */}
+        <div className="relative">
+          <div ref={emblaRef} className="overflow-hidden">
+            <div className="flex gap-4" style={{ touchAction: 'pan-y pinch-zoom' }}>
+              {events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex-shrink-0 w-[280px] sm:w-[300px] md:w-[320px]"
+                >
+                  <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 h-full flex flex-col">
+                    <div className="relative">
+                      {event.image_url ? (
+                        <img 
+                          src={event.image_url} 
+                          alt={isRTL ? event.title_ar : event.title}
+                          className="w-full h-48 object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                          <Calendar className="w-16 h-16 text-primary/30" />
                         </div>
                       )}
+                      {event.difficulty_level && (
+                        <div className="absolute top-4 right-4 flex gap-2">
+                          <Badge variant="secondary">
+                            {event.difficulty_level === 'beginner' 
+                              ? (isRTL ? 'مبتدئ' : 'Beginner')
+                              : event.difficulty_level === 'intermediate' 
+                                ? (isRTL ? 'متوسط' : 'Intermediate')
+                                : (isRTL ? 'متقدم' : 'Advanced')}
+                          </Badge>
+                        </div>
+                      )}
+                      <div className="absolute bottom-4 right-4">
+                        <div className="bg-background/90 backdrop-blur-sm rounded-lg px-3 py-1">
+                          <span className="text-sm font-bold text-primary">
+                            {event.price 
+                              ? (isRTL ? `${event.price} ريال` : `${event.price} SAR`)
+                              : (isRTL ? 'مجاني' : 'Free')}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
 
-                  <CardFooter className="px-6 pb-6">
-                    <Button asChild className="w-full" size="sm">
-                      <Link to={`/event/${event.id}`}>
-                        عرض التفاصيل
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="hidden md:flex" />
-          <CarouselNext className="hidden md:flex" />
-        </Carousel>
+                    <CardContent className="p-4 flex-1">
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                          {isRTL ? event.title_ar : event.title}
+                        </h3>
+                        
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{isRTL ? event.location_ar : event.location}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4 flex-shrink-0" />
+                          <span>
+                            {new Date(event.start_date).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="w-4 h-4 flex-shrink-0" />
+                          <span>
+                            {new Date(event.start_date).toLocaleTimeString(isRTL ? 'ar-SA' : 'en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit',
+                              hour12: true 
+                            })}
+                          </span>
+                        </div>
+
+                        {event.max_attendees && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Users className="w-4 h-4 flex-shrink-0" />
+                            <span>{event.current_attendees || 0}/{event.max_attendees}</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+
+                    <CardFooter className="px-4 pb-4 pt-0">
+                      <Button asChild className="w-full" size="sm">
+                        <Link to={`/event/${event.id}`}>
+                          {isRTL ? 'عرض التفاصيل' : 'View Details'}
+                        </Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
         <div className="text-center mt-8">
           <Button asChild size="lg" variant="outline">
             <Link to="/my-events">
-              عرض فعالياتي الخاصة
+              {isRTL ? 'عرض فعالياتي الخاصة' : 'View My Events'}
             </Link>
           </Button>
         </div>

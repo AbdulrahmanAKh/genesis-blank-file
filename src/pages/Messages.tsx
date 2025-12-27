@@ -95,26 +95,33 @@ const Messages = () => {
     }
   }, [searchParams]);
 
-  // Fetch all tickets (support tickets + direct conversations)
+  // Fetch all tickets using contact_submissions table
   const { data: tickets, isLoading, refetch } = useQuery({
-    queryKey: ['user-messages-tickets', user?.id],
+    queryKey: ['user-messages-tickets', user?.id, user?.email],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!user?.id || !user?.email) return [];
       
       const { data, error } = await supabase
-        .from('support_tickets')
-        .select(`
-          *,
-          ticket_messages(count),
-          target_profile:profiles!support_tickets_target_user_id_fkey(full_name, avatar_url)
-        `)
-        .or(`user_id.eq.${user.id},target_user_id.eq.${user.id}`)
-        .order('updated_at', { ascending: false });
+        .from('contact_submissions')
+        .select('*')
+        .eq('email', user.email)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      
+      // Map to expected format
+      return (data || []).map(item => ({
+        id: item.id,
+        subject: item.subject,
+        ticket_type: item.category,
+        status: item.status === 'pending' ? 'open' : item.status,
+        created_at: item.created_at,
+        updated_at: item.created_at,
+        message: item.message,
+        admin_notes: item.admin_notes,
+      }));
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !!user?.email,
     staleTime: 30 * 1000,
   });
 

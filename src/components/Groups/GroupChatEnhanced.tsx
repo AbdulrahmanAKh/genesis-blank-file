@@ -140,7 +140,7 @@ export const GroupChatEnhanced: React.FC<GroupChatEnhancedProps> = ({
   };
 
   return (
-    <Card className="h-[calc(100vh-12rem)] flex flex-col">
+    <Card className="flex flex-col h-full min-h-[400px] max-h-[calc(100vh-16rem)]">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
         <CardTitle className="flex items-center text-lg">
           {groupName}

@@ -177,12 +177,12 @@ export const PostDetailsDialog: React.FC<PostDetailsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{isRTL ? 'المنشور والتعليقات' : 'Post & Comments'}</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
           {/* Original Post */}
           <div className="mb-6 pb-6 border-b">
             <div className="flex items-center gap-3 mb-4">

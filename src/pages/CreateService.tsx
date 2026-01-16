@@ -221,7 +221,7 @@ const CreateService = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       
-      <main className="flex-1 container mx-auto px-4 py-8 pb-32">
+      <main className="flex-1 container mx-auto px-4 py-8 pb-24">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">

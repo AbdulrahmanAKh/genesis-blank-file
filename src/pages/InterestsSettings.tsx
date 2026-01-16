@@ -113,9 +113,9 @@ const InterestsSettings = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-80px)]">
+        <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </div>
@@ -123,10 +123,10 @@ const InterestsSettings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-background flex flex-col" dir={isRTL ? 'rtl' : 'ltr'}>
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
         <div className={`mb-6 ${isRTL ? 'text-right' : 'text-left'}`}>
           <Button
             variant="ghost"

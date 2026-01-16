@@ -311,9 +311,10 @@ export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
             </TabsList>
           </div>
 
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="px-6 pb-6">
-            {/* General Settings Tab */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="px-6 pb-6">
+              {/* General Settings Tab */}
             <TabsContent value="general" className="mt-4 space-y-6">
               <Card>
                 <CardHeader className="pb-3">
@@ -585,8 +586,9 @@ export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
                 </CardContent>
               </Card>
             </TabsContent>
-            </div>
-          </ScrollArea>
+              </div>
+            </ScrollArea>
+          </div>
         </Tabs>
 
         {/* Action Buttons */}

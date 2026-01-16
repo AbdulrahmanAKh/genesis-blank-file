@@ -143,37 +143,21 @@ export const FloatingTicketButton: React.FC<FloatingTicketButtonProps> = ({ clas
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.5 }}
             >
-              {/* Pulse animation rings - absolutely positioned outside button bounds */}
+              {/* Single pulse animation ring - clean animation without duplicates */}
               {hasNewMessages && (
-                <>
-                  <motion.span 
-                    className="absolute inset-0 rounded-full bg-primary/40 pointer-events-none -z-10"
-                    initial={{ scale: 1, opacity: 0.6 }}
-                    animate={{
-                      scale: [1, 1.5, 1.8],
-                      opacity: [0.5, 0.25, 0],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeOut",
-                    }}
-                  />
-                  <motion.span 
-                    className="absolute inset-0 rounded-full bg-primary/30 pointer-events-none -z-10"
-                    initial={{ scale: 1, opacity: 0.4 }}
-                    animate={{
-                      scale: [1, 1.3, 1.5],
-                      opacity: [0.4, 0.2, 0],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeOut",
-                      delay: 0.3,
-                    }}
-                  />
-                </>
+                <motion.span 
+                  className="absolute inset-0 rounded-full bg-primary/30 pointer-events-none -z-10"
+                  animate={{
+                    scale: [1, 1.6],
+                    opacity: [0.5, 0],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeOut",
+                    repeatDelay: 0.5,
+                  }}
+                />
               )}
               
               {/* Unread badge - positioned absolutely outside the button flow */}

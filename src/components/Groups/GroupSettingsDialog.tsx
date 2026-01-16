@@ -282,8 +282,8 @@ export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0">
-        <DialogHeader className="p-6 pb-4">
+      <DialogContent className="max-w-3xl max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogHeader className="p-6 pb-4 flex-shrink-0">
           <DialogTitle className="text-2xl flex items-center gap-2">
             <Settings className="h-6 w-6" />
             {isRTL ? 'إعدادات المجموعة' : 'Group Settings'}
@@ -293,8 +293,8 @@ export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <div className="px-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="px-6 flex-shrink-0">
             <TabsList className={cn("grid w-full grid-cols-3 h-11", isRTL && "direction-rtl")}>
               <TabsTrigger value="general" className="flex items-center gap-2 data-[state=active]:bg-background">
                 <Settings className="h-4 w-4 flex-shrink-0" />
@@ -311,7 +311,7 @@ export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
             </TabsList>
           </div>
 
-          <ScrollArea className="flex-1 h-[calc(90vh-240px)]">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="px-6 pb-6">
             {/* General Settings Tab */}
             <TabsContent value="general" className="mt-4 space-y-6">
@@ -590,7 +590,7 @@ export const GroupSettingsDialog: React.FC<GroupSettingsDialogProps> = ({
         </Tabs>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 justify-end p-6 pt-4 border-t bg-muted/30">
+        <div className="flex gap-3 justify-end p-6 pt-4 border-t bg-muted/30 flex-shrink-0">
           <Button variant="outline" onClick={onClose}>
             {isRTL ? 'إلغاء' : 'Cancel'}
           </Button>

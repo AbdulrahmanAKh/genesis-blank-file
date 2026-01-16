@@ -95,6 +95,8 @@ interface SupportTicket {
   is_sent: boolean;
   sender_name?: string;
   target_name?: string;
+  is_unread?: boolean;
+  last_message_sender_id?: string;
 }
 
 const Messages = () => {
@@ -119,6 +121,7 @@ const Messages = () => {
   }, [searchParams]);
 
   // Fetch all tickets - both sent by user AND received by user (as target)
+  // With unread status tracking
   const { data: tickets, isLoading, refetch } = useQuery({
     queryKey: ['user-messages-tickets', user?.id],
     queryFn: async () => {
@@ -132,10 +135,11 @@ const Messages = () => {
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
+      if (!data || data.length === 0) return [];
       
       // Fetch user names for tickets
       const userIds = new Set<string>();
-      (data || []).forEach(ticket => {
+      data.forEach(ticket => {
         if (ticket.user_id) userIds.add(ticket.user_id);
         if (ticket.target_user_id) userIds.add(ticket.target_user_id);
       });
@@ -147,16 +151,48 @@ const Messages = () => {
       
       const profilesMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
       
-      // Map tickets with sent/received indicator
-      return (data || []).map(ticket => ({
-        ...ticket,
-        is_sent: ticket.user_id === user.id,
-        sender_name: profilesMap.get(ticket.user_id)?.full_name,
-        target_name: profilesMap.get(ticket.target_user_id)?.full_name,
-      })) as SupportTicket[];
+      // Fetch the last message for each ticket to determine unread status
+      const ticketIds = data.map(t => t.id);
+      const { data: lastMessages } = await supabase
+        .from('ticket_messages')
+        .select('ticket_id, sender_id, created_at')
+        .in('ticket_id', ticketIds)
+        .order('created_at', { ascending: false });
+      
+      // Group by ticket_id and get the latest message per ticket
+      const latestPerTicket = new Map<string, { sender_id: string; created_at: string }>();
+      (lastMessages || []).forEach(msg => {
+        if (!latestPerTicket.has(msg.ticket_id)) {
+          latestPerTicket.set(msg.ticket_id, msg);
+        }
+      });
+      
+      // Map tickets with sent/received indicator and unread status
+      const mappedTickets = data.map(ticket => {
+        const lastMsg = latestPerTicket.get(ticket.id);
+        const is_unread = lastMsg ? lastMsg.sender_id !== user.id : false;
+        
+        return {
+          ...ticket,
+          is_sent: ticket.user_id === user.id,
+          sender_name: profilesMap.get(ticket.user_id)?.full_name,
+          target_name: profilesMap.get(ticket.target_user_id)?.full_name,
+          is_unread,
+          last_message_sender_id: lastMsg?.sender_id,
+        };
+      }) as SupportTicket[];
+      
+      // Sort: unread first, then by updated_at
+      return mappedTickets.sort((a, b) => {
+        // Unread messages first
+        if (a.is_unread && !b.is_unread) return -1;
+        if (!a.is_unread && b.is_unread) return 1;
+        // Then by updated_at (most recent first)
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
     },
     enabled: !!user?.id,
-    staleTime: 30 * 1000,
+    staleTime: 10 * 1000, // Faster refresh for real-time feel
   });
 
   const selectedTicket = tickets?.find(t => t.id === selectedTicketId);
@@ -311,12 +347,12 @@ const Messages = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-background flex flex-col" dir={isRTL ? 'rtl' : 'ltr'}>
       <Navbar />
-      <main className="container mx-auto px-4 py-6 lg:py-8">
+      <main className="flex-1 container mx-auto px-4 py-6 lg:py-8 flex flex-col overflow-hidden">
         {/* Header */}
         <motion.div 
-          className="flex items-center justify-between mb-6"
+          className="flex items-center justify-between mb-6 flex-shrink-0"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -338,8 +374,8 @@ const Messages = () => {
           <NewInquiryDropdown />
         </motion.div>
 
-        {/* Split View Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[500px] max-h-[calc(100vh-280px)] mb-6">
+        {/* Split View Layout - flex-1 to fill remaining space, min-h-0 to allow shrinking */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 pb-6">
           {/* Messages List - Left Panel */}
           <motion.div 
             className={cn(
@@ -397,17 +433,31 @@ const Messages = () => {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.03 }}
                               className={cn(
-                                "p-4 rounded-xl cursor-pointer transition-all border",
+                                "p-4 rounded-xl cursor-pointer transition-all border relative",
                                 selectedTicketId === ticket.id
                                   ? "bg-primary/10 border-primary/30"
-                                  : "hover:bg-muted/50 border-transparent hover:border-border"
+                                  : ticket.is_unread
+                                    ? "bg-primary/5 border-primary/20 hover:bg-primary/10"
+                                    : "hover:bg-muted/50 border-transparent hover:border-border"
                               )}
                               onClick={() => handleSelectTicket(ticket.id)}
                             >
+                              {/* Unread indicator badge */}
+                              {ticket.is_unread && (
+                                <div className="absolute top-2 end-2">
+                                  <Badge 
+                                    variant="default" 
+                                    className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0 h-5"
+                                  >
+                                    {isRTL ? 'جديد' : 'New'}
+                                  </Badge>
+                                </div>
+                              )}
                               <div className="flex items-start gap-3">
                                 <div className={cn(
                                   "p-2 rounded-lg flex-shrink-0 relative",
-                                  selectedTicketId === ticket.id ? "bg-primary/20" : "bg-muted"
+                                  selectedTicketId === ticket.id ? "bg-primary/20" : 
+                                    ticket.is_unread ? "bg-primary/15" : "bg-muted"
                                 )}>
                                   {getTicketIcon(ticket.ticket_type)}
                                   {/* Sent/Received indicator */}
@@ -423,7 +473,10 @@ const Messages = () => {
                                   </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-medium truncate text-sm">{ticket.subject}</h3>
+                                  <h3 className={cn(
+                                    "truncate text-sm",
+                                    ticket.is_unread ? "font-bold" : "font-medium"
+                                  )}>{ticket.subject}</h3>
                                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                                     {ticket.is_sent 
                                       ? (isRTL ? `إلى: ${ticket.target_name || 'غير محدد'}` : `To: ${ticket.target_name || 'Unknown'}`)
@@ -441,7 +494,7 @@ const Messages = () => {
                                   </div>
                                 </div>
                                 <ChevronRight className={cn(
-                                  "h-4 w-4 text-muted-foreground flex-shrink-0",
+                                  "h-4 w-4 text-muted-foreground flex-shrink-0 mt-1",
                                   isRTL && "rotate-180"
                                 )} />
                               </div>

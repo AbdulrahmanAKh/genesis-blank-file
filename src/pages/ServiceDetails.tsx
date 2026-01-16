@@ -205,10 +205,10 @@ const ServiceDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8">
         {/* Back Button */}
         <div className="mb-6">
           <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">

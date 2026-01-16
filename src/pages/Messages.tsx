@@ -104,7 +104,7 @@ const Messages = () => {
   const { language } = useLanguageContext();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('open');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -289,15 +289,20 @@ const Messages = () => {
     );
   };
 
-  const filteredTickets = tickets?.filter(ticket => {
-    const matchesTab = activeTab === 'all' || 
+  // Separate open/active tickets from closed ones
+  const openTickets = tickets?.filter(t => t.status !== 'resolved') || [];
+  const closedTickets = tickets?.filter(t => t.status === 'resolved') || [];
+  
+  const filteredTickets = (activeTab === 'closed' ? closedTickets : openTickets).filter(ticket => {
+    if (activeTab === 'closed') return true; // Already filtered to resolved
+    const matchesTab = activeTab === 'open' || 
       (activeTab === 'sent' && ticket.is_sent) ||
       (activeTab === 'received' && !ticket.is_sent) ||
       ticket.ticket_type === activeTab;
     const matchesSearch = !searchQuery || 
       ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
-  }) || [];
+  });
 
   const handleSelectTicket = (ticketId: string) => {
     setSelectedTicketId(ticketId);
@@ -400,9 +405,14 @@ const Messages = () => {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="w-full mb-4 h-12 grid grid-cols-3">
-                <TabsTrigger value="all" className="text-xs sm:text-sm">
-                  {isRTL ? 'الكل' : 'All'}
+              <TabsList className="w-full mb-4 h-12 grid grid-cols-4">
+                <TabsTrigger value="open" className="text-xs sm:text-sm">
+                  {isRTL ? 'المفتوحة' : 'Open'}
+                  {openTickets.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] px-1 text-[10px]">
+                      {openTickets.length}
+                    </Badge>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger value="sent" className="text-xs sm:text-sm gap-1">
                   <ArrowUpRight className="h-3 w-3" />
@@ -411,6 +421,10 @@ const Messages = () => {
                 <TabsTrigger value="received" className="text-xs sm:text-sm gap-1">
                   <ArrowDownLeft className="h-3 w-3" />
                   <span className="hidden sm:inline">{isRTL ? 'المستلمة' : 'Received'}</span>
+                </TabsTrigger>
+                <TabsTrigger value="closed" className="text-xs sm:text-sm gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span className="hidden sm:inline">{isRTL ? 'المغلقة' : 'Closed'}</span>
                 </TabsTrigger>
               </TabsList>
 
